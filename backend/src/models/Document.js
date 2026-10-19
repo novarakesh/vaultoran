@@ -42,6 +42,10 @@ const documentSchema = new mongoose.Schema(
       required: [true, 'SHA-256 file integrity hash is required'],
       index: true,
     },
+    fileData: {
+      type: Buffer,
+      select: false, // Excluded from general queries, loaded specifically on download
+    },
     sharedWith: [
       {
         user: {

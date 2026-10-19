@@ -28,6 +28,7 @@ const uploadDocument = async (req, res, next) => {
 
     // Compute cryptographic SHA-256 hash of the stored file
     const fileHash = await computeFileHash(req.file.path);
+    const fileBuffer = fs.readFileSync(req.file.path);
 
     const doc = await Document.create({
       title: title.trim(),
@@ -38,6 +39,7 @@ const uploadDocument = async (req, res, next) => {
       mimeType: req.file.mimetype,
       size: req.file.size,
       fileHash,
+      fileData: fileBuffer,
       sharedWith: [],
       isDeleted: false,
     });
@@ -166,19 +168,33 @@ const downloadDocument = async (req, res, next) => {
   try {
     const doc = req.document;
 
+    // Use basename to prevent path traversal and decouple from container absolute paths
+    const filename = path.basename(doc.filePath);
+    const storageDir = path.resolve(config.storageDir);
+    const resolvedPath = path.join(storageDir, filename);
+
     // Verify storage path traversal protection
-    const resolvedPath = path.resolve(doc.filePath);
-    if (!resolvedPath.startsWith(path.resolve(config.storageDir))) {
+    if (!resolvedPath.startsWith(storageDir)) {
       return res.status(403).json({
         error: 'Security Violation: Path traversal detected.',
       });
     }
 
-    // Verify file exists on disk
+    // Ensure storage directory exists
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+
+    // If file is not present on ephemeral disk (e.g. Render container restart), auto-hydrate from DB backup
     if (!fs.existsSync(resolvedPath)) {
-      return res.status(404).json({
-        error: 'Document file not found on storage vault.',
-      });
+      const fullDoc = await Document.findById(doc._id).select('+fileData');
+      if (fullDoc && fullDoc.fileData && fullDoc.fileData.length > 0) {
+        fs.writeFileSync(resolvedPath, fullDoc.fileData);
+      } else {
+        return res.status(404).json({
+          error: 'Document file was cleared from temporary cloud storage during a container restart. Please ask the owner to re-deposit this document to enable permanent cloud backup.',
+        });
+      }
     }
 
     // File integrity verification: verify fileHash against stored SHA-256
@@ -203,9 +219,10 @@ const downloadDocument = async (req, res, next) => {
     });
 
     // Hardened headers: Prevent MIME sniffing, enforce safe download
-    const safeFilename = encodeURIComponent(doc.originalName).replace(/['()]/g, escape);
+    const safeOriginalName = doc.originalName.replace(/["\r\n]/g, '_');
+    const encodedName = encodeURIComponent(doc.originalName);
     res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeOriginalName}"; filename*=UTF-8''${encodedName}`);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'");
 

@@ -63,7 +63,21 @@ const DocumentCard = ({
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Secure streaming error:', err);
-      setDownloadError(err.response?.data?.error || 'Integrity or authorization check failed on download.');
+      let errorMsg = 'Integrity or authorization check failed on download.';
+      if (err.response && err.response.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.error) {
+            errorMsg = parsed.error;
+          }
+        } catch (_) {
+          // not a JSON blob
+        }
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setDownloadError(errorMsg);
     } finally {
       setDownloading(false);
     }
