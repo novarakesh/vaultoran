@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import apiClient from '../api/client';
+import DocumentViewerModal from './DocumentViewerModal';
 import {
   Download,
   Share2,
@@ -12,7 +13,8 @@ import {
   Check,
   AlertTriangle,
   Lock,
-  Edit3
+  Edit3,
+  Eye
 } from 'lucide-react';
 
 const DocumentCard = ({
@@ -23,6 +25,7 @@ const DocumentCard = ({
   onDeleteClick,
 }) => {
   const [downloading, setDownloading] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
   const [downloadError, setDownloadError] = useState('');
 
@@ -107,8 +110,13 @@ const DocumentCard = ({
         </div>
 
         {/* Title */}
-        <h4 className="text-base font-bold text-slate-900 mb-1 line-clamp-1 hover:text-indigo-600 transition">
-          {doc.title}
+        <h4
+          onClick={() => setIsViewerOpen(true)}
+          className="text-base font-bold text-slate-900 mb-1 line-clamp-1 hover:text-indigo-600 transition cursor-pointer flex items-center justify-between group"
+          title="Click to view and read document"
+        >
+          <span className="truncate">{doc.title}</span>
+          <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition flex-shrink-0 ml-1.5" />
         </h4>
         <p className="text-xs text-slate-500 font-mono mb-3 truncate">{doc.originalName}</p>
 
@@ -178,14 +186,24 @@ const DocumentCard = ({
       )}
 
       {/* Action Buttons */}
-      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+      <div className="pt-3 border-t border-slate-100 flex items-center space-x-2">
+        <button
+          onClick={() => setIsViewerOpen(true)}
+          className="flex-1 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center justify-center space-x-1.5 border border-indigo-200/80 shadow-2xs"
+          title="Open document in secure reader window"
+        >
+          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+          <span>View / Read</span>
+        </button>
+
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="flex-1 mr-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs"
+          className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs"
+          title="Download file to local device"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>{downloading ? 'Verifying & Streaming...' : 'Secure Download'}</span>
+          <span>{downloading ? '...' : 'Download'}</span>
         </button>
 
         {canManage && (
@@ -207,6 +225,13 @@ const DocumentCard = ({
           </div>
         )}
       </div>
+
+      {/* Pop-up Document Viewer Modal */}
+      <DocumentViewerModal
+        isOpen={isViewerOpen}
+        onClose={() => setIsViewerOpen(false)}
+        document={doc}
+      />
     </div>
   );
 };
