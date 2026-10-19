@@ -1,41 +1,42 @@
 import React from 'react';
 
-const StatCard = ({ title, value, subtitle, icon: Icon, color = 'cyan' }) => {
+const StatCard = ({ title, value, subtitle, icon: Icon, color = 'indigo' }) => {
   const colorMap = {
-    cyan: {
-      bg: 'bg-cyber-cyan/10',
-      text: 'text-cyber-cyan',
-      border: 'border-cyber-cyan/20',
-      glow: 'shadow-glow-cyan',
+    indigo: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-600',
+      border: 'border-slate-200',
     },
     emerald: {
-      bg: 'bg-cyber-emerald/10',
-      text: 'text-cyber-emerald',
-      border: 'border-cyber-emerald/20',
-      glow: 'shadow-glow-emerald',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-600',
+      border: 'border-slate-200',
     },
     rose: {
-      bg: 'bg-cyber-rose/10',
-      text: 'text-cyber-rose',
-      border: 'border-cyber-rose/20',
-      glow: 'shadow-glow-rose',
+      bg: 'bg-rose-50',
+      text: 'text-rose-600',
+      border: 'border-slate-200',
+    },
+    sky: {
+      bg: 'bg-sky-50',
+      text: 'text-sky-600',
+      border: 'border-slate-200',
     },
     purple: {
-      bg: 'bg-cyber-purple/10',
-      text: 'text-cyber-purple',
-      border: 'border-cyber-purple/20',
-      glow: '',
+      bg: 'bg-purple-50',
+      text: 'text-purple-600',
+      border: 'border-slate-200',
     },
   };
 
-  const scheme = colorMap[color] || colorMap.cyan;
+  const scheme = colorMap[color] || colorMap.indigo;
 
   return (
-    <div className={`glass-panel p-5 rounded-2xl border ${scheme.border} relative overflow-hidden transition hover:border-opacity-50`}>
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs transition hover:border-slate-300 hover:shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-slate-400">{title}</p>
-          <p className="text-2xl font-extrabold text-white mt-1 tracking-tight">{value}</p>
+          <p className="text-xs font-mono uppercase tracking-wider text-slate-500">{title}</p>
+          <p className="text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">{value}</p>
           {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
         </div>
         {Icon && (

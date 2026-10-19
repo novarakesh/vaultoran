@@ -60,31 +60,31 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center p-4">
+    <div className="min-h-[90vh] flex items-center justify-center p-4 bg-slate-50">
       <div className="w-full max-w-md">
         {/* Revocation Alert Banner */}
         {revocationNotice && (
-          <div className="mb-6 p-4 rounded-2xl bg-cyber-rose/10 border border-cyber-rose/30 shadow-glow-rose flex items-start space-x-3">
-            <ShieldAlert className="w-5 h-5 text-cyber-rose flex-shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start space-x-3 shadow-xs">
+            <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-cyber-rose">Session Revocation Alert</p>
-              <p className="text-xs text-slate-300 mt-0.5">{revocationNotice}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Session Revocation Alert</p>
+              <p className="text-xs text-slate-600 mt-0.5">{revocationNotice}</p>
             </div>
           </div>
         )}
 
         {/* If user is already logged in, show current session pill */}
         {currentUser && (
-          <div className="mb-6 p-3.5 rounded-2xl bg-vault-900 border border-cyber-cyan/30 flex items-center justify-between">
+          <div className="mb-6 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-lg bg-cyber-cyan/15 text-cyber-cyan flex items-center justify-center font-bold text-xs uppercase">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
                 {currentUser.role[0]}
               </div>
               <div>
-                <p className="text-xs text-slate-300">
-                  Signed in as <strong className="text-white">{currentUser.name}</strong>
+                <p className="text-xs text-slate-600">
+                  Signed in as <strong className="text-slate-900">{currentUser.name}</strong>
                 </p>
-                <p className="text-[10px] font-mono text-cyber-cyan uppercase font-bold">
+                <p className="text-[10px] font-mono text-indigo-600 uppercase font-bold">
                   Role: {currentUser.role}
                 </p>
               </div>
@@ -92,32 +92,32 @@ const LoginPage = () => {
 
             <button
               onClick={() => logout()}
-              className="px-2.5 py-1.5 rounded-lg bg-vault-800 hover:bg-cyber-rose/20 text-slate-300 hover:text-cyber-rose text-[11px] font-mono transition flex items-center space-x-1"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 text-[11px] font-mono transition flex items-center space-x-1 border border-slate-200"
             >
               <LogOut className="w-3 h-3" />
-              <span>Switch User</span>
+              <span>Sign Out</span>
             </button>
           </div>
         )}
 
-        <div className="glass-panel p-8 rounded-3xl border-white/10 shadow-2xl relative overflow-hidden">
-          {/* Top Cyber Branding */}
+        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden">
+          {/* Top Branding */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyber-cyan to-blue-600 flex items-center justify-center shadow-glow-cyan">
-              <Shield className="w-8 h-8 text-vault-950 stroke-[2.5]" />
+            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md">
+              <Shield className="w-8 h-8 text-white stroke-[2.5]" />
             </div>
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">TrustVault Security Portal</h1>
-            <p className="text-xs text-slate-400 font-mono mt-1">Zero-Trust Confidential Document Exchange</p>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">TrustVault Security Portal</h1>
+            <p className="text-xs text-slate-500 font-mono mt-1">Zero-Trust Confidential Document Exchange</p>
           </div>
 
           {/* Quick 1-Click Role Login Bar */}
-          <div className="mb-6 p-3.5 rounded-2xl bg-vault-900/90 border border-white/10">
+          <div className="mb-6 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-1.5 text-slate-400 text-[10px] font-mono uppercase tracking-wider">
-                <Zap className="w-3.5 h-3.5 text-cyber-cyan" />
+              <div className="flex items-center space-x-1.5 text-slate-500 text-[10px] font-mono uppercase tracking-wider font-semibold">
+                <Zap className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Instant 1-Click Role Login:</span>
               </div>
-              <span className="text-[9px] font-mono text-slate-500">Auto-auth</span>
+              <span className="text-[9px] font-mono text-slate-400">Auto-auth</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -125,7 +125,7 @@ const LoginPage = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('admin@trustvault.io', 'AdminVault#2026!')}
-                className="py-2 px-2 rounded-xl bg-cyber-purple/15 hover:bg-cyber-purple/30 border border-cyber-purple/40 text-[11px] font-extrabold text-cyber-purple transition shadow-glow-purple text-center disabled:opacity-50"
+                className="py-2 px-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[11px] font-extrabold text-purple-700 transition text-center shadow-xs disabled:opacity-50"
               >
                 Admin SOC
               </button>
@@ -133,7 +133,7 @@ const LoginPage = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('owner@trustvault.io', 'OwnerVault#2026!')}
-                className="py-2 px-2 rounded-xl bg-cyber-cyan/15 hover:bg-cyber-cyan/30 border border-cyber-cyan/40 text-[11px] font-extrabold text-cyber-cyan transition shadow-glow-cyan text-center disabled:opacity-50"
+                className="py-2 px-2 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-[11px] font-extrabold text-sky-700 transition text-center shadow-xs disabled:opacity-50"
               >
                 Owner
               </button>
@@ -141,7 +141,7 @@ const LoginPage = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('viewer1@trustvault.io', 'Viewer1Vault#2026!')}
-                className="py-2 px-2 rounded-xl bg-cyber-emerald/15 hover:bg-cyber-emerald/30 border border-cyber-emerald/40 text-[11px] font-extrabold text-cyber-emerald transition shadow-glow-emerald text-center disabled:opacity-50"
+                className="py-2 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-extrabold text-emerald-700 transition text-center shadow-xs disabled:opacity-50"
               >
                 Viewer
               </button>
@@ -149,7 +149,7 @@ const LoginPage = () => {
           </div>
 
           {/* Tab Selector */}
-          <div className="flex rounded-xl bg-vault-900 p-1 mb-6 border border-white/5">
+          <div className="flex rounded-xl bg-slate-100 p-1 mb-6 border border-slate-200">
             <button
               type="button"
               onClick={() => {
@@ -157,7 +157,7 @@ const LoginPage = () => {
                 setError('');
               }}
               className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                isLogin ? 'bg-cyber-cyan text-vault-950 shadow-glow-cyan' : 'text-slate-400 hover:text-white'
+                isLogin ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               Sign In
@@ -169,7 +169,7 @@ const LoginPage = () => {
                 setError('');
               }}
               className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition ${
-                !isLogin ? 'bg-cyber-cyan text-vault-950 shadow-glow-cyan' : 'text-slate-400 hover:text-white'
+                !isLogin ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               Register
@@ -177,7 +177,7 @@ const LoginPage = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-cyber-rose/10 border border-cyber-rose/30 flex items-center space-x-2.5 text-cyber-rose text-xs">
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center space-x-2.5 text-rose-700 text-xs">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -186,68 +186,68 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 mb-1.5 font-bold">
                   Full Legal Name
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Eleanor Vance"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-vault-900 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyber-cyan"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 mb-1.5 font-bold">
                 Corporate Email
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@trustvault.io"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-vault-900 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyber-cyan"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
+              <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 mb-1.5 font-bold">
                 Secret Password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-vault-900 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyber-cyan"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition"
                 />
               </div>
             </div>
 
             {!isLogin && (
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 mb-1.5 font-bold">
                   Account Role
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-vault-900 border border-white/10 text-white text-sm focus:outline-none focus:border-cyber-cyan"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition font-medium"
                 >
-                  <option value="viewer">Viewer (Read-only / Delegated shares)</option>
+                  <option value="viewer">Viewer (Read-only / Delegated clearances)</option>
                   <option value="owner">Document Owner (Upload & manage private vault)</option>
                 </select>
                 <p className="text-[10px] text-slate-500 mt-1 font-mono">
@@ -259,11 +259,11 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl font-bold uppercase tracking-wider text-xs bg-cyber-cyan text-vault-950 hover:bg-cyan-300 disabled:opacity-50 transition shadow-glow-cyan flex items-center justify-center space-x-2 mt-2"
+              className="w-full py-3 rounded-xl font-bold uppercase tracking-wider text-xs bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition shadow-sm flex items-center justify-center space-x-2 mt-2"
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-vault-950/20 border-t-vault-950 rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   <span>Authenticating...</span>
                 </>
               ) : (

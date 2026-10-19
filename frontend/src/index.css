@@ -4,16 +4,15 @@
 
 @layer base {
   body {
-    @apply bg-vault-950 text-slate-100;
+    @apply bg-slate-50 text-slate-800 antialiased;
   }
 }
 
-/* Glassmorphism & Cyber Glow utilities */
+/* Light Theme Card & Panel Styling */
 .glass-panel {
-  background: rgba(16, 22, 38, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
 .glass-panel-hover {
@@ -21,36 +20,34 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(20, 28, 48, 0.85);
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 8px 32px -8px rgba(6, 182, 212, 0.15);
+  border-color: #CBD5E1;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 }
 
-/* Custom cyber scrollbars */
+/* Crisp light scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #070A12;
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E2945;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #06B6D4;
+  background: #94A3B8;
 }
 
-/* Pulse animation for security status */
-@keyframes cyber-pulse {
+@keyframes pulse-subtle {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.05); }
+  50% { opacity: 0.6; transform: scale(1.04); }
 }
 
-.animate-cyber-pulse {
-  animation: cyber-pulse 2s infinite ease-in-out;
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
 }

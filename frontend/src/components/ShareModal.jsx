@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
-import { UserCheck, X, Shield, Trash2, Plus, AlertCircle, CheckCircle } from 'lucide-react';
+import { UserCheck, X, Trash2, Plus, AlertCircle, CheckCircle, Shield } from 'lucide-react';
 
 const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
   const [users, setUsers] = useState([]);
@@ -23,7 +23,7 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
     try {
       setLoadingUsers(true);
       const res = await apiClient.get('/api/users');
-      // Filter out document owner
+      // Owner only grants permissions to Viewers (or other users excluding self)
       const available = res.data.users.filter((u) => u._id !== doc.owner?._id && u._id !== doc.owner);
       setUsers(available);
       if (available.length > 0) {
@@ -52,7 +52,7 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
         permission,
       });
 
-      setSuccess('Access permissions updated.');
+      setSuccess(`Clearance granted: ${permission === 'edit' ? 'Can Edit & Download' : 'Read-Only & Download'}.`);
       onShareUpdated(res.data.document);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update document sharing permissions.');
@@ -72,7 +72,7 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
         permission: 'none',
       });
 
-      setSuccess('User access successfully revoked.');
+      setSuccess('Clearance revoked. Target user can no longer view or download.');
       onShareUpdated(res.data.document);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to revoke document access.');
@@ -82,43 +82,43 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-950/80 backdrop-blur-md">
-      <div className="glass-panel max-w-xl w-full p-6 rounded-2xl border-white/10 shadow-glow-cyan relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white max-w-xl w-full p-6 rounded-2xl border border-slate-200 shadow-xl relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-vault-800 transition"
+          className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-cyber-purple/15 text-cyber-purple flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <UserCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Manage Compartmentalized Access</h3>
-            <p className="text-xs text-slate-400 font-mono truncate max-w-sm">{doc.title}</p>
+            <h3 className="text-lg font-bold text-slate-900">Manage Viewer Clearances</h3>
+            <p className="text-xs text-slate-500 font-mono truncate max-w-sm">{doc.title}</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-cyber-rose/10 border border-cyber-rose/30 flex items-center space-x-2.5 text-cyber-rose text-xs">
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center space-x-2.5 text-rose-700 text-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 rounded-xl bg-cyber-emerald/10 border border-cyber-emerald/30 flex items-center space-x-2.5 text-cyber-emerald text-xs">
+          <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center space-x-2.5 text-emerald-700 text-xs">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        {/* Add Share Form */}
-        <form onSubmit={handleAddOrUpdateShare} className="p-4 rounded-xl bg-vault-900/60 border border-white/5 mb-6">
-          <p className="text-xs font-mono uppercase tracking-wider text-slate-300 mb-3 flex items-center">
-            <Plus className="w-3.5 h-3.5 mr-1 text-cyber-cyan" /> Grant New Clearance
+        {/* Grant Permission Form */}
+        <form onSubmit={handleAddOrUpdateShare} className="p-4 rounded-xl bg-slate-50 border border-slate-200 mb-6">
+          <p className="text-xs font-mono uppercase tracking-wider text-slate-700 mb-3 flex items-center font-bold">
+            <Plus className="w-3.5 h-3.5 mr-1 text-indigo-600" /> Delegate Clearance to Viewer
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -127,14 +127,14 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 disabled={loadingUsers || users.length === 0}
-                className="w-full px-3 py-2 rounded-xl bg-vault-850 border border-white/10 text-white text-xs focus:outline-none focus:border-cyber-cyan"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500"
               >
                 {users.length === 0 ? (
                   <option value="">No other registered users found</option>
                 ) : (
                   users.map((u) => (
                     <option key={u._id} value={u._id}>
-                      {u.name} ({u.email}) [{u.role}]
+                      {u.name} ({u.email}) [{u.role.toUpperCase()}]
                     </option>
                   ))
                 )}
@@ -145,10 +145,10 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
               <select
                 value={permission}
                 onChange={(e) => setPermission(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-vault-850 border border-white/10 text-white text-xs focus:outline-none focus:border-cyber-cyan"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-indigo-500 font-medium"
               >
-                <option value="read">Read Only</option>
-                <option value="edit">Can Edit</option>
+                <option value="read">Read-Only (View & Download)</option>
+                <option value="edit">Can Edit (Edit & Download)</option>
               </select>
             </div>
 
@@ -156,24 +156,27 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
               <button
                 type="submit"
                 disabled={submitting || !selectedUserId}
-                className="w-full h-full py-2 px-3 rounded-xl bg-cyber-cyan text-vault-950 hover:bg-cyan-300 font-bold text-xs transition disabled:opacity-50"
+                className="w-full h-full py-2 px-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs transition disabled:opacity-50 shadow-xs"
               >
                 {submitting ? '...' : 'Grant'}
               </button>
             </div>
           </div>
+          <p className="text-[11px] text-slate-500 mt-2 font-mono">
+            *Users without an explicit clearance grant are strictly blocked from downloading (HTTP 403).
+          </p>
         </form>
 
         {/* Current Active Shares List */}
         <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-            Active Delegated Shares ({doc.sharedWith?.length || 0})
+          <p className="text-xs font-mono uppercase tracking-wider text-slate-700 mb-2 font-bold">
+            Active Clearance Grants ({doc.sharedWith?.length || 0})
           </p>
 
           <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {!doc.sharedWith || doc.sharedWith.length === 0 ? (
-              <div className="p-4 rounded-xl bg-vault-900/30 border border-white/5 text-center text-xs text-slate-500">
-                This document is strictly restricted to its owner and administrators.
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                This document is strictly restricted to its owner and administrators. No viewers currently have download clearance.
               </div>
             ) : (
               doc.sharedWith.map((share) => {
@@ -181,34 +184,34 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
                 return (
                   <div
                     key={share._id || (typeof targetUser === 'object' ? targetUser._id : targetUser)}
-                    className="flex items-center justify-between p-3 rounded-xl bg-vault-900 border border-white/5"
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-slate-200">
+                      <p className="text-xs font-semibold text-slate-800">
                         {typeof targetUser === 'object' ? targetUser.name : 'User'}
                       </p>
-                      <p className="text-[11px] text-slate-400 font-mono">
+                      <p className="text-[11px] text-slate-500 font-mono">
                         {typeof targetUser === 'object' ? targetUser.email : targetUser}
                       </p>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <span
-                        className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                        className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-bold border ${
                           share.permission === 'edit'
-                            ? 'bg-cyber-purple/20 text-cyber-purple border-cyber-purple/30'
-                            : 'bg-cyber-emerald/20 text-cyber-emerald border-cyber-emerald/30'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         }`}
                       >
-                        {share.permission === 'edit' ? 'Can Edit' : 'Read Only'}
+                        {share.permission === 'edit' ? 'Can Edit & Download' : 'Read-Only'}
                       </span>
 
                       <button
                         type="button"
                         onClick={() => handleRevokeShare(typeof targetUser === 'object' ? targetUser._id : targetUser)}
                         disabled={submitting}
-                        title="Revoke clearance"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-cyber-rose hover:bg-cyber-rose/10 transition"
+                        title="Revoke clearance immediately"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition border border-slate-200"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -224,7 +227,7 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-vault-800 hover:bg-vault-700 text-white transition"
+            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
           >
             Done
           </button>
