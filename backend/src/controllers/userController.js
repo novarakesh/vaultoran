@@ -3,13 +3,12 @@ const User = require('../models/User');
 const { recordAuditLog } = require('../utils/audit');
 
 /**
- * List users for document sharing picker
+ * List users for document sharing picker and admin governance
  * Restricted to 'owner' and 'admin' roles
- * Returns minimal fields to prevent leaking sensitive attributes
  */
 const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find({}, '_id name email role').sort({ name: 1 });
+    const users = await User.find({}, '_id name email role tokenVersion createdAt').sort({ name: 1 });
     return res.status(200).json({
       count: users.length,
       users,
@@ -49,7 +48,60 @@ const revokeUserSessions = async (req, res, next) => {
   }
 };
 
+/**
+ * Update user role (Admin Governance)
+ * Strictly restricted to 'admin' role
+ * Allows assigning who is admin, owner, or viewer
+ */
+const updateUserRole = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid user ID format.' });
+    }
+
+    if (!['admin', 'owner', 'viewer'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, owner, or viewer.' });
+    }
+
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const oldRole = targetUser.role;
+    targetUser.role = role;
+    // Increment tokenVersion so role permissions take effect immediately
+    targetUser.tokenVersion += 1;
+    await targetUser.save();
+
+    // Record immutable audit log of the governance action
+    await recordAuditLog({
+      req,
+      userId: req.user._id,
+      action: 'PERMISSION_CHANGE',
+      metadata: {
+        targetUserId: targetUser._id,
+        targetEmail: targetUser.email,
+        oldRole,
+        newRole: role,
+        governanceAction: 'ROLE_UPDATE',
+      },
+    });
+
+    return res.status(200).json({
+      message: `User ${targetUser.email} role updated from ${oldRole} to ${role}.`,
+      user: targetUser.toJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUsers,
   revokeUserSessions,
+  updateUserRole,
 };
