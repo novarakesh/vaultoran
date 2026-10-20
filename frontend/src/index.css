@@ -4,27 +4,113 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+  }
+
+  html.dark body {
+    background-color: #0a0a0a;
+    color: #f4f4f5;
   }
 }
 
-/* Light Theme Card & Panel Styling */
+/* Light Theme: Increase weight & contrast of small text for crisp readability */
+html:not(.dark) .text-xs,
+html:not(.dark) .text-\[9px\],
+html:not(.dark) .text-\[10px\],
+html:not(.dark) .text-\[11px\],
+html:not(.dark) .text-\[12px\] {
+  font-weight: 500;
+}
+
+/* Increase contrast of faint slate colors in light theme */
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important; /* slate-600 */
+  font-weight: 500;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #334155 !important; /* slate-700 */
+  font-weight: 500;
+}
+
+html:not(.dark) .text-slate-600 {
+  color: #1e293b !important; /* slate-800 */
+}
+
+/* Dark Theme: True Neutral / Charcoal / Onyx (Zero Blue Hue) */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark .text-slate-400 {
+  color: #a1a1aa !important; /* neutral-400 */
+}
+
+html.dark .text-slate-500 {
+  color: #d4d4d8 !important; /* neutral-300 */
+}
+
+html.dark .text-slate-600 {
+  color: #e4e4e7 !important; /* neutral-200 */
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-800,
+html.dark .text-slate-900 {
+  color: #fafafa !important; /* neutral-50 */
+}
+
+/* Universal Dark Theme Surface Overrides (Completely Prevents White Blocks in Dark Mode) */
+html.dark .bg-white {
+  background-color: #141414 !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/50 {
+  background-color: #18181b !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-slate-100\/80,
+html.dark .bg-slate-100\/50 {
+  background-color: #222225 !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: #262626 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1a1a1c !important;
+  color: #f4f4f5 !important;
+  border-color: #2d2d30 !important;
+}
+
+html.dark select option {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+/* Card & Panel Styling */
 .glass-panel {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-.glass-panel-hover {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+html.dark .glass-panel {
+  background: #141414;
+  border: 1px solid #262626;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
-.glass-panel-hover:hover {
-  border-color: #CBD5E1;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-}
-
-/* Crisp light scrollbars */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -34,20 +120,23 @@
   background: #F1F5F9;
 }
 
+html.dark ::-webkit-scrollbar-track {
+  background: #141414;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
   border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #333333;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
 
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.04); }
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s infinite ease-in-out;
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
 }

@@ -44,7 +44,6 @@ const DocumentCard = ({
         responseType: 'blob',
       });
 
-      // Extract filename from Content-Disposition header if available
       let filename = doc.originalName || `${doc.title}.pdf`;
       const disposition = response.headers['content-disposition'];
       if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -54,7 +53,6 @@ const DocumentCard = ({
         }
       }
 
-      // Create download link from secure stream blob
       const blob = new Blob([response.data], { type: doc.mimeType });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -66,7 +64,7 @@ const DocumentCard = ({
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Secure streaming error:', err);
-      let errorMsg = 'Integrity or authorization check failed on download.';
+      let errorMsg = 'Authorization check failed on download.';
       if (err.response && err.response.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
@@ -95,15 +93,15 @@ const DocumentCard = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl p-5 flex flex-col justify-between border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition">
+    <div className="bg-white dark:bg-[#141414] rounded-2xl p-5 flex flex-col justify-between border border-slate-200 dark:border-neutral-800 shadow-xs hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-md transition duration-200">
       <div>
         {/* Header: Category & Size */}
         <div className="flex items-center justify-between mb-3">
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-200 border border-slate-200 dark:border-neutral-700">
             {doc.category || 'Confidential'}
           </span>
 
-          <div className="flex items-center space-x-1.5 text-xs text-slate-500">
+          <div className="flex items-center space-x-1.5 text-xs text-slate-600 dark:text-neutral-400 font-bold">
             <HardDrive className="w-3.5 h-3.5" />
             <span className="font-mono text-[11px]">{formatFileSize(doc.size)}</span>
           </div>
@@ -112,13 +110,13 @@ const DocumentCard = ({
         {/* Title */}
         <h4
           onClick={() => setIsViewerOpen(true)}
-          className="text-base font-bold text-slate-900 mb-1 line-clamp-1 hover:text-indigo-600 transition cursor-pointer flex items-center justify-between group"
+          className="text-base font-bold text-slate-900 dark:text-neutral-100 mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition cursor-pointer flex items-center justify-between group"
           title="Click to view and read document"
         >
           <span className="truncate">{doc.title}</span>
-          <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition flex-shrink-0 ml-1.5" />
+          <Eye className="w-3.5 h-3.5 text-slate-400 dark:text-neutral-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition flex-shrink-0 ml-1.5" />
         </h4>
-        <p className="text-xs text-slate-500 font-mono mb-3 truncate">{doc.originalName}</p>
+        <p className="text-xs text-slate-600 dark:text-neutral-400 font-mono mb-3 truncate font-semibold">{doc.originalName}</p>
 
         {/* Permission Badge (if Viewer context) */}
         {permissionLevel && (
@@ -126,8 +124,8 @@ const DocumentCard = ({
             <span
               className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase font-bold border ${
                 permissionLevel === 'edit'
-                  ? 'bg-purple-50 text-purple-700 border-purple-200'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                  : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
               }`}
             >
               {permissionLevel === 'edit' ? (
@@ -145,18 +143,18 @@ const DocumentCard = ({
           </div>
         )}
 
-        {/* SHA-256 Integrity Hash Badge */}
-        <div className="mb-4 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between group">
+        {/* Checksum Badge */}
+        <div className="mb-4 p-2.5 rounded-xl bg-slate-50 dark:bg-neutral-800/80 border border-slate-200 dark:border-neutral-700 flex items-center justify-between group">
           <div className="flex items-center space-x-1.5 overflow-hidden">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-            <span className="text-[10px] text-slate-500 font-mono truncate" title={doc.fileHash}>
-              SHA-256: <span className="text-slate-800 font-medium">{doc.fileHash.substring(0, 16)}...</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span className="text-[10px] text-slate-600 dark:text-neutral-400 font-mono truncate font-medium" title={doc.fileHash}>
+              Hash: <span className="text-slate-800 dark:text-neutral-200 font-bold">{doc.fileHash?.substring(0, 16)}...</span>
             </span>
           </div>
 
           <button
             onClick={copyHashToClipboard}
-            className="p-1 rounded text-slate-400 hover:text-indigo-600 transition"
+            className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition cursor-pointer"
             title="Copy full cryptographic checksum"
           >
             {copiedHash ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -164,42 +162,42 @@ const DocumentCard = ({
         </div>
 
         {/* Metadata Footer */}
-        <div className="space-y-1.5 text-xs text-slate-600 mb-5">
+        <div className="space-y-1.5 text-xs text-slate-700 dark:text-neutral-300 mb-5 font-medium">
           <div className="flex items-center space-x-2">
-            <User className="w-3.5 h-3.5 text-slate-400" />
+            <User className="w-3.5 h-3.5 text-slate-500 dark:text-neutral-400" />
             <span className="truncate">
-              Owner: <strong className="text-slate-800">{doc.owner?.name || 'Authorized Owner'}</strong>
+              Owner: <strong className="text-slate-900 dark:text-white font-bold">{doc.owner?.name || 'Authorized Owner'}</strong>
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
+            <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-neutral-400" />
+            <span className="font-semibold">{new Date(doc.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
       </div>
 
       {downloadError && (
-        <div className="mb-3 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] flex items-center space-x-1.5">
+        <div className="mb-3 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-[11px] flex items-center space-x-1.5 font-semibold">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="truncate">{downloadError}</span>
         </div>
       )}
 
       {/* Action Buttons */}
-      <div className="pt-3 border-t border-slate-100 flex items-center space-x-2">
+      <div className="pt-3 border-t border-slate-100 dark:border-neutral-800 flex items-center space-x-2">
         <button
           onClick={() => setIsViewerOpen(true)}
-          className="flex-1 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center justify-center space-x-1.5 border border-indigo-200/80 shadow-2xs"
+          className="flex-1 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition flex items-center justify-center space-x-1.5 border border-indigo-200 dark:border-indigo-800 shadow-2xs cursor-pointer"
           title="Open document in secure reader window"
         >
-          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+          <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span>View / Read</span>
         </button>
 
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs"
+          className="px-3 py-2 rounded-xl bg-slate-900 dark:bg-neutral-200 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-neutral-900 text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
           title="Download file to local device"
         >
           <Download className="w-3.5 h-3.5" />
@@ -211,14 +209,14 @@ const DocumentCard = ({
             <button
               onClick={() => onShareClick(doc)}
               title="Manage Viewer Clearances"
-              className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200"
+              className="p-2 rounded-xl text-slate-600 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-neutral-800 transition border border-slate-200 dark:border-neutral-700 cursor-pointer"
             >
               <Share2 className="w-4 h-4" />
             </button>
             <button
               onClick={() => onDeleteClick(doc)}
               title="Soft Delete Document"
-              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition border border-slate-200"
+              className="p-2 rounded-xl text-slate-600 dark:text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-neutral-800 transition border border-slate-200 dark:border-neutral-700 cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
             </button>

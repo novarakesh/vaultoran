@@ -93,6 +93,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/admin/audit-logs', auditRoutes);
 
 // 9. 404 Handler for Unrecognized Routes
 app.use((req, res) => {

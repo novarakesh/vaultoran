@@ -5,30 +5,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        vault: {
-          950: '#070A12',
-          900: '#0B0F19',
-          850: '#101626',
-          800: '#141C30',
-          700: '#1E2945',
-          600: '#2D3D66',
-        },
-        cyber: {
-          cyan: '#06B6D4',
-          emerald: '#10B981',
-          rose: '#F43F5E',
-          amber: '#F59E0B',
-          purple: '#8B5CF6',
+        neutral: {
+          950: '#0a0a0a',
+          900: '#141414',
+          850: '#1c1c1c',
+          800: '#262626',
+          700: '#3f3f46',
+          600: '#52525b',
+          500: '#71717a',
+          400: '#a1a1aa',
+          300: '#d4d4d8',
+          200: '#e4e4e7',
+          100: '#f4f4f5',
+          50: '#fafafa',
         },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      boxShadow: {
-        'glow-cyan': '0 0 20px -5px rgba(6, 182, 212, 0.3)',
-        'glow-emerald': '0 0 20px -5px rgba(16, 185, 129, 0.3)',
-        'glow-rose': '0 0 20px -5px rgba(244, 63, 94, 0.3)',
       },
     },
   },
