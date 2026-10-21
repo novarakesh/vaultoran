@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/client';
-import { Shield, Lock, Mail, User, AlertCircle, ShieldAlert, Zap, LogOut, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, Mail, User, AlertCircle, ShieldAlert, Zap, LogOut } from 'lucide-react';
 
 const LoginPage = () => {
   const [searchParams] = useSearchParams();
@@ -164,26 +164,12 @@ const LoginPage = () => {
 
         <div className="bg-white dark:bg-[#141414] p-8 rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-xl relative overflow-hidden transition-colors duration-200">
           {/* Top Branding */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-8">
             <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md">
               <Shield className="w-8 h-8 text-white stroke-[2.5]" />
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Vaultoran Security Portal</h1>
             <p className="text-xs text-slate-600 dark:text-neutral-400 font-mono mt-1 font-semibold">Zero-Trust Confidential Document Exchange</p>
-
-            {/* Cloud Cold-Start / Health Enclave Status Pill */}
-            <div className="mt-3 flex items-center justify-center">
-              {serverStatus === 'ready' ? (
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] font-mono font-medium text-amber-800 dark:text-amber-200 shadow-2xs">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                  <span>Free-tier cloud backend waking up... (~10-15s first visit)</span>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Quick 1-Click Role Login Bar */}
