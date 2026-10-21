@@ -19,6 +19,25 @@ const getUsers = async (req, res, next) => {
 };
 
 /**
+ * List viewers specifically for document sharing picker
+ * Restricted to 'owner' and 'admin' roles
+ */
+const getViewers = async (req, res, next) => {
+  try {
+    const viewers = await User.find(
+      { _id: { $ne: req.user._id } },
+      '_id name email role tokenVersion createdAt'
+    ).sort({ name: 1 });
+    return res.status(200).json({
+      count: viewers.length,
+      viewers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Revoke all active sessions for a target user (Admin killswitch)
  * Increments target user's tokenVersion
  */
@@ -102,6 +121,7 @@ const updateUserRole = async (req, res, next) => {
 
 module.exports = {
   getUsers,
+  getViewers,
   revokeUserSessions,
   updateUserRole,
 };

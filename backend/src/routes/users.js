@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, revokeUserSessions, updateUserRole } = require('../controllers/userController');
+const { getUsers, getViewers, revokeUserSessions, updateUserRole } = require('../controllers/userController');
 const verifyToken = require('../middleware/verifyToken');
 const authorizeRole = require('../middleware/authorizeRole');
 
@@ -11,6 +11,13 @@ const router = express.Router();
  * @access  Private ('owner', 'admin')
  */
 router.get('/', verifyToken, authorizeRole('owner', 'admin'), getUsers);
+
+/**
+ * @route   GET /api/users/viewers
+ * @desc    Fetch eligible viewers for document clearance delegation
+ * @access  Private ('owner', 'admin')
+ */
+router.get('/viewers', verifyToken, authorizeRole('owner', 'admin'), getViewers);
 
 /**
  * @route   PATCH /api/users/:id/revoke

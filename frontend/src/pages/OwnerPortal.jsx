@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
 import DocumentCard from '../components/DocumentCard';
@@ -23,6 +24,7 @@ import {
 const CATEGORIES = ['All', 'Confidential', 'Financial', 'Legal', 'Technical', 'HR', 'Executive'];
 
 const OwnerPortal = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('vault');
   const [documents, setDocuments] = useState([]);
   const [viewers, setViewers] = useState([]);
@@ -45,7 +47,7 @@ const OwnerPortal = () => {
   useEffect(() => {
     fetchDocuments();
     fetchViewers();
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, activeTab]);
 
   const fetchDocuments = async () => {
     try {
@@ -55,10 +57,11 @@ const OwnerPortal = () => {
       if (selectedCategory !== 'All') params.category = selectedCategory;
 
       const res = await apiClient.get('/api/documents', { params });
-      setDocuments(res.data.documents || []);
+      const docs = res.data.documents || [];
+      setDocuments(docs);
 
-      if (res.data.documents && res.data.documents.length > 0 && !selectedDocForClearance) {
-        setSelectedDocForClearance(res.data.documents[0]._id);
+      if (docs.length > 0) {
+        setSelectedDocForClearance((prev) => (docs.some((d) => d._id === prev) ? prev : docs[0]._id));
       }
     } catch (err) {
       console.error('Failed to fetch documents:', err);
@@ -69,13 +72,27 @@ const OwnerPortal = () => {
 
   const fetchViewers = async () => {
     try {
-      const res = await apiClient.get('/api/users/viewers');
-      setViewers(res.data.viewers || []);
-      if (res.data.viewers && res.data.viewers.length > 0 && !selectedViewerId) {
-        setSelectedViewerId(res.data.viewers[0]._id);
+      // Primary: query user directory
+      const res = await apiClient.get('/api/users');
+      const allUsers = res.data.users || [];
+      const eligible = allUsers.filter((u) => u._id !== user?._id);
+      setViewers(eligible);
+      if (eligible.length > 0) {
+        setSelectedViewerId((prev) => (eligible.some((u) => u._id === prev) ? prev : eligible[0]._id));
       }
     } catch (err) {
-      console.error('Failed to fetch viewers:', err);
+      console.warn('Failed to fetch from /api/users, attempting fallback to /api/users/viewers:', err);
+      try {
+        const res2 = await apiClient.get('/api/users/viewers');
+        const list = res2.data.viewers || [];
+        const eligible = list.filter((u) => u._id !== user?._id);
+        setViewers(eligible);
+        if (eligible.length > 0) {
+          setSelectedViewerId((prev) => (eligible.some((u) => u._id === prev) ? prev : eligible[0]._id));
+        }
+      } catch (err2) {
+        console.error('Failed to fetch viewers:', err2);
+      }
     }
   };
 
@@ -304,6 +321,19 @@ const OwnerPortal = () => {
                   Only viewers with explicit clearance can view and download. Non-cleared users are strictly blocked.
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  fetchDocuments();
+                  fetchViewers();
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 border border-slate-200 dark:border-neutral-700 flex items-center space-x-1.5 transition cursor-pointer shadow-2xs"
+                title="Refresh user directory and documents"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Refresh Directory</span>
+              </button>
             </div>
 
             {clearanceStatus && (
@@ -350,7 +380,7 @@ const OwnerPortal = () => {
                     ) : (
                       viewers.map((v) => (
                         <option key={v._id} value={v._id} className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">
-                          {v.name} ({v.email})
+                          {v.name} ({v.email}){v.role ? ` • [${v.role}]` : ''}
                         </option>
                       ))
                     )}
