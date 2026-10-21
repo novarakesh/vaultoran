@@ -6,6 +6,7 @@ const {
   downloadDocument,
   shareDocument,
   deleteDocument,
+  updateDocument,
 } = require('../controllers/documentController');
 const verifyToken = require('../middleware/verifyToken');
 const authorizeRole = require('../middleware/authorizeRole');
@@ -44,6 +45,19 @@ router.get(
   verifyToken,
   authorizeDocumentAccess('read'),
   getDocumentById
+);
+
+/**
+ * @route   PUT /api/documents/:id
+ * @desc    Edit document metadata or upload a revised file version
+ * @access  Private (Owner, Admin, or shared Viewer with 'edit' clearance)
+ */
+router.put(
+  '/:id',
+  verifyToken,
+  authorizeDocumentAccess('edit'),
+  upload.single('file'),
+  updateDocument
 );
 
 /**

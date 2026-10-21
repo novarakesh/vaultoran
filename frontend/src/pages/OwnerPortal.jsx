@@ -281,6 +281,7 @@ const OwnerPortal = () => {
                     key={doc._id}
                     document={doc}
                     canManage={true}
+                    onDocumentUpdated={fetchDocuments}
                     onShareClick={(d) => setActiveShareDoc(d)}
                     onDeleteClick={(d) => setDocToDelete(d)}
                   />
@@ -366,8 +367,8 @@ const OwnerPortal = () => {
                       onChange={(e) => setClearancePermission(e.target.value)}
                       className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 text-xs text-slate-800 dark:text-neutral-100 font-medium focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="read" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Read-Only & Stream</option>
-                      <option value="edit" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Edit Clearance</option>
+                      <option value="read" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Can Read (View & Download Only)</option>
+                      <option value="edit" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Can Edit (Edit, Revise & Download)</option>
                     </select>
 
                     <button
@@ -379,6 +380,25 @@ const OwnerPortal = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Clearance capability description helper */}
+              <div className="mt-4 p-3 rounded-xl border text-xs">
+                {clearancePermission === 'read' ? (
+                  <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 p-2.5 rounded-lg font-medium">
+                    <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <span>
+                      <strong>Can Read:</strong> Viewer can stream, preview, and download authentic file. Editing, metadata changes, and file revision updates are strictly locked.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-purple-800 dark:text-purple-300 bg-purple-50/60 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800/60 p-2.5 rounded-lg font-medium">
+                    <Edit3 className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                    <span>
+                      <strong>Can Edit:</strong> Viewer can stream, preview, download, edit document title/category, and commit revised file versions with recalculated SHA-256 integrity hashes.
+                    </span>
+                  </div>
+                )}
               </div>
             </form>
 

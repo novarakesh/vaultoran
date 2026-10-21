@@ -16,7 +16,10 @@ import {
   HardDrive,
   Eye,
   RefreshCw,
-  Lock
+  Lock,
+  Edit3,
+  Save,
+  CheckCircle
 } from 'lucide-react';
 
 const TEXT_EXTENSIONS = [
@@ -25,9 +28,21 @@ const TEXT_EXTENSIONS = [
   'yaml', 'yml', 'env', 'sh', 'bat', 'ps1', 'ini', 'conf'
 ];
 
-const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
+const DocumentViewerModal = ({
+  isOpen,
+  onClose,
+  document: initialDoc,
+  canEdit = false,
+  permissionLevel = 'read',
+  onDocumentUpdated,
+}) => {
+  const [doc, setDoc] = useState(initialDoc);
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState('');
+  const [editedContent, setEditedContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingRevision, setSavingRevision] = useState(false);
+  const [revisionSuccess, setRevisionSuccess] = useState('');
   const [blobUrl, setBlobUrl] = useState(null);
   const [fileType, setFileType] = useState('text'); // 'text' | 'pdf' | 'image' | 'binary'
   const [error, setError] = useState('');
@@ -35,6 +50,13 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
   const [wrapText, setWrapText] = useState(true);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sync internal doc with incoming prop
+  useEffect(() => {
+    setDoc(initialDoc);
+    setIsEditing(false);
+    setRevisionSuccess('');
+  }, [initialDoc, isOpen]);
 
   // Determine file type helper
   const detectFileType = (documentItem) => {
@@ -64,12 +86,15 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
   useEffect(() => {
     if (!isOpen || !doc) {
       setContent('');
+      setEditedContent('');
       if (blobUrl) {
         window.URL.revokeObjectURL(blobUrl);
         setBlobUrl(null);
       }
       setError('');
       setIsFullscreen(false);
+      setIsEditing(false);
+      setRevisionSuccess('');
       return;
     }
 
@@ -90,6 +115,7 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
         if (detected === 'text') {
           const text = await response.data.text();
           setContent(text);
+          setEditedContent(text);
         } else {
           const url = window.URL.createObjectURL(response.data);
           setBlobUrl(url);
@@ -123,13 +149,14 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
         window.URL.revokeObjectURL(blobUrl);
       }
     };
-  }, [isOpen, doc]);
+  }, [isOpen, doc?._id]);
 
   if (!isOpen || !doc) return null;
 
   const handleCopyText = () => {
-    if (!content) return;
-    navigator.clipboard.writeText(content);
+    const textToCopy = isEditing ? editedContent : content;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -151,6 +178,37 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Download error:', err);
+    }
+  };
+
+  const handleSaveTextRevision = async () => {
+    if (!canEdit) return;
+    setSavingRevision(true);
+    setError('');
+    setRevisionSuccess('');
+    try {
+      const blob = new Blob([editedContent], { type: doc.mimeType || 'text/plain' });
+      const formData = new FormData();
+      formData.append('file', blob, doc.originalName || `${doc.title}.txt`);
+
+      const res = await apiClient.put(`/api/documents/${doc._id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const updated = res.data.document;
+      setDoc(updated);
+      setContent(editedContent);
+      setIsEditing(false);
+      setRevisionSuccess(`Revision saved! SHA-256 integrity hash recomputed: ${updated.fileHash?.substring(0, 16)}...`);
+      if (onDocumentUpdated) {
+        onDocumentUpdated(updated);
+      }
+      setTimeout(() => setRevisionSuccess(''), 6000);
+    } catch (err) {
+      console.error('Failed to save document revision:', err);
+      setError(err.response?.data?.error || 'Failed to save revision. Make sure you possess edit clearance.');
+    } finally {
+      setSavingRevision(false);
     }
   };
 
@@ -194,6 +252,19 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-200 dark:bg-neutral-800 text-slate-800 dark:text-neutral-200">
                   {doc.category || 'Confidential'}
                 </span>
+
+                {/* Explicit Clearance Differentiation Badge */}
+                {canEdit ? (
+                  <span className="hidden sm:inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-2xs">
+                    <Edit3 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                    <span>Collaborator (Can Edit & Revise)</span>
+                  </span>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                    <Lock className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    <span>Read-Only Clearance (Inspection Only)</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-600 dark:text-neutral-400 font-mono truncate font-semibold">{doc.originalName}</p>
             </div>
@@ -206,7 +277,7 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
                 <button
                   onClick={handleCopyText}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 text-xs font-bold transition flex items-center space-x-1 shadow-2xs cursor-pointer"
-                  title="Copy full text to clipboard"
+                  title="Copy text to clipboard"
                 >
                   {copied ? (
                     <>
@@ -221,29 +292,83 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
                   )}
                 </button>
 
-                <button
-                  onClick={() => setWrapText(!wrapText)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                    wrapText
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
-                      : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'
-                  }`}
-                  title="Toggle Word Wrap"
-                >
-                  Wrap
-                </button>
+                {!isEditing && (
+                  <>
+                    <button
+                      onClick={() => setWrapText(!wrapText)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                        wrapText
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                          : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'
+                      }`}
+                      title="Toggle Word Wrap"
+                    >
+                      Wrap
+                    </button>
 
-                <button
-                  onClick={() => setShowLineNumbers(!showLineNumbers)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                    showLineNumbers
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
-                      : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'
-                  }`}
-                  title="Toggle Line Numbers"
-                >
-                  Lines
-                </button>
+                    <button
+                      onClick={() => setShowLineNumbers(!showLineNumbers)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                        showLineNumbers
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                          : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700'
+                      }`}
+                      title="Toggle Line Numbers"
+                    >
+                      Lines
+                    </button>
+                  </>
+                )}
+
+                {/* Collaborative In-Viewer Edit Button for Editors */}
+                {canEdit ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (isEditing) {
+                          setIsEditing(false);
+                          setEditedContent(content);
+                        } else {
+                          setEditedContent(content);
+                          setIsEditing(true);
+                        }
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer flex items-center space-x-1 ${
+                        isEditing
+                          ? 'bg-purple-100 dark:bg-purple-900/60 border-purple-300 dark:border-purple-700 text-purple-800 dark:text-purple-200'
+                          : 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50'
+                      }`}
+                      title={isEditing ? 'Cancel in-reader editing' : 'Collaborative Edit: Modify text directly and commit revision'}
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                      <span>{isEditing ? 'Cancel' : 'Edit Text'}</span>
+                    </button>
+
+                    {isEditing && (
+                      <button
+                        onClick={handleSaveTextRevision}
+                        disabled={savingRevision}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1 shadow-xs cursor-pointer disabled:opacity-50"
+                        title="Commit revised text & recalculate SHA-256"
+                      >
+                        {savingRevision ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5" />
+                        )}
+                        <span>{savingRevision ? 'Saving...' : 'Save'}</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div
+                    className="hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-neutral-800/80 border border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400 text-[11px] font-mono font-medium"
+                    title="Read-Only Clearance: Editing disabled by policy"
+                  >
+                    <Lock className="w-3 h-3 text-slate-400" />
+                    <span>Read-Only</span>
+                  </div>
+                )}
               </>
             )}
 
@@ -299,6 +424,14 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
           </div>
         </div>
 
+        {/* Dynamic Revision Success Toast Banner */}
+        {revisionSuccess && (
+          <div className="px-5 py-2 bg-emerald-100 dark:bg-emerald-950/80 border-b border-emerald-300 dark:border-emerald-800 flex items-center space-x-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 flex-shrink-0">
+            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span>{revisionSuccess}</span>
+          </div>
+        )}
+
         {/* Main Content Area */}
         <div className="flex-1 bg-white dark:bg-[#121212] overflow-hidden relative flex flex-col">
           {loading && (
@@ -334,28 +467,49 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
           )}
 
           {!loading && !error && fileType === 'text' && (
-            <div className="flex-1 overflow-auto flex font-mono text-xs leading-relaxed selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-900 dark:selection:text-indigo-200">
-              {showLineNumbers && (
-                <div className="bg-slate-50 dark:bg-neutral-900 border-r border-slate-200 dark:border-neutral-800 text-slate-500 dark:text-neutral-500 select-none py-4 px-3 text-right font-mono flex-shrink-0 font-medium">
-                  {lines.map((_, i) => (
-                    <div key={i} className="leading-5">
-                      {i + 1}
+            isEditing ? (
+              <div className="flex-1 flex flex-col bg-white dark:bg-[#121212] overflow-hidden">
+                <div className="px-4 py-2 bg-purple-50 dark:bg-purple-950/40 border-b border-purple-200 dark:border-purple-900/60 flex items-center justify-between text-xs text-purple-800 dark:text-purple-300 font-semibold">
+                  <div className="flex items-center space-x-2">
+                    <Edit3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span>Collaborative In-Viewer Text Editor</span>
+                  </div>
+                  <span className="font-mono text-[11px] opacity-80">
+                    {editedContent.length} chars • Click &quot;Save&quot; to commit and recalculate SHA-256
+                  </span>
+                </div>
+                <textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  placeholder="Enter document text content..."
+                  spellCheck="false"
+                  className="flex-1 w-full p-4 font-mono text-xs leading-relaxed text-slate-900 dark:text-neutral-100 bg-transparent resize-none focus:outline-none selection:bg-purple-200 dark:selection:bg-purple-900 selection:text-purple-900 dark:selection:text-purple-200"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto flex font-mono text-xs leading-relaxed selection:bg-indigo-100 dark:selection:bg-indigo-900 selection:text-indigo-900 dark:selection:text-indigo-200">
+                {showLineNumbers && (
+                  <div className="bg-slate-50 dark:bg-neutral-900 border-r border-slate-200 dark:border-neutral-800 text-slate-500 dark:text-neutral-500 select-none py-4 px-3 text-right font-mono flex-shrink-0 font-medium">
+                    {lines.map((_, i) => (
+                      <div key={i} className="leading-5">
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div
+                  className={`flex-1 p-4 text-slate-900 dark:text-neutral-100 font-mono ${
+                    wrapText ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
+                  }`}
+                >
+                  {lines.map((line, idx) => (
+                    <div key={idx} className="leading-5 hover:bg-slate-50 dark:hover:bg-neutral-800/60 px-1 rounded-xs">
+                      {line || '\u00A0'}
                     </div>
                   ))}
                 </div>
-              )}
-              <div
-                className={`flex-1 p-4 text-slate-900 dark:text-neutral-100 font-mono ${
-                  wrapText ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'
-                }`}
-              >
-                {lines.map((line, idx) => (
-                  <div key={idx} className="leading-5 hover:bg-slate-50 dark:hover:bg-neutral-800/60 px-1 rounded-xs">
-                    {line || '\u00A0'}
-                  </div>
-                ))}
               </div>
-            </div>
+            )
           )}
 
           {!loading && !error && fileType === 'pdf' && (
@@ -419,7 +573,7 @@ const DocumentViewerModal = ({ isOpen, onClose, document: doc }) => {
             </span>
             {fileType === 'text' && (
               <span className="font-mono font-medium">
-                {lines.length} {lines.length === 1 ? 'line' : 'lines'} • {content.length} characters
+                {lines.length} {lines.length === 1 ? 'line' : 'lines'} • {(isEditing ? editedContent : content).length} characters
               </span>
             )}
           </div>

@@ -149,10 +149,10 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
               <select
                 value={permission}
                 onChange={(e) => setPermission(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 text-slate-800 dark:text-neutral-100 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-neutral-800 border border-slate-300 dark:border-neutral-700 text-slate-800 dark:text-neutral-100 text-xs focus:outline-none focus:border-indigo-500 font-medium cursor-pointer"
               >
-                <option value="read" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Read-Only (View & Stream)</option>
-                <option value="edit" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Can Edit (Edit & Stream)</option>
+                <option value="read" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Can Read (View & Download Only)</option>
+                <option value="edit" className="bg-white dark:bg-neutral-800 text-slate-800 dark:text-neutral-100">Can Edit (Edit, Revise & Download)</option>
               </select>
             </div>
 
@@ -160,15 +160,27 @@ const ShareModal = ({ isOpen, onClose, document: doc, onShareUpdated }) => {
               <button
                 type="submit"
                 disabled={submitting || !selectedUserId}
-                className="w-full h-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition disabled:opacity-50 shadow-xs cursor-pointer"
+                className="w-full h-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition disabled:opacity-50 shadow-xs cursor-pointer flex items-center justify-center space-x-1"
               >
                 {submitting ? '...' : 'Grant'}
               </button>
             </div>
           </div>
-          <p className="text-[11px] text-slate-600 dark:text-neutral-400 mt-2 font-mono font-medium">
-            *Users without an explicit clearance grant are strictly blocked from downloading (HTTP 403).
-          </p>
+
+          {/* Real-time Clearance Capability Explainer */}
+          <div className="mt-3">
+            {permission === 'edit' ? (
+              <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-[11px] text-purple-900 dark:text-purple-200 font-mono flex items-start space-x-2">
+                <span className="font-bold">✏️ Can Edit:</span>
+                <span>Recipient can view, download, rename title, change category, and upload revised file versions. (Cannot delete or alter permissions).</span>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-200 font-mono flex items-start space-x-2">
+                <span className="font-bold">🔒 Can Read:</span>
+                <span>Recipient can view and download file with hash verification. Modifying title, category, or file version is strictly locked.</span>
+              </div>
+            )}
+          </div>
         </form>
 
         {/* Current Active Shares List */}

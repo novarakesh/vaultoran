@@ -122,6 +122,35 @@ const ViewerDashboard = () => {
         {/* TAB: DOCUMENTS (Cleared, Read-Only, or Editable) */}
         {activeTab !== 'session' && (
           <>
+            {/* Clearance Compartment Explanation Banners */}
+            {activeTab === 'readonly' && (
+              <div className="mb-6 p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-start space-x-3 shadow-2xs">
+                <Lock className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                    Read-Only Clearance Compartment
+                  </h4>
+                  <p className="text-xs text-slate-700 dark:text-neutral-300 mt-1 leading-relaxed">
+                    You have <strong>Read-Only clearance</strong> on these documents. You can inspect cryptographic checksums, read files in the browser viewer, and download. Editing titles, categories, or uploading revised versions is strictly restricted.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'editable' && (
+              <div className="mb-6 p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 flex items-start space-x-3 shadow-2xs">
+                <Edit3 className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-purple-800 dark:text-purple-300">
+                    Collaborative Edit Clearance Compartment
+                  </h4>
+                  <p className="text-xs text-slate-700 dark:text-neutral-300 mt-1 leading-relaxed">
+                    You have <strong>Collaborative Edit clearance</strong> on these documents. In addition to reading and downloading, you can rename titles, change classification categories, and upload revised file versions. (Deleting documents and managing user shares remain restricted to owners).
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Search & Filter Bar */}
             <div className="bg-white dark:bg-[#141414] p-4 rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-xs mb-8 flex flex-col md:flex-row gap-4 justify-between items-center transition-colors">
               <div className="relative w-full md:w-96">
@@ -188,6 +217,7 @@ const ViewerDashboard = () => {
                     document={doc}
                     canManage={false}
                     permissionLevel={getViewerPermission(doc)}
+                    onDocumentUpdated={fetchSharedDocuments}
                   />
                 ))}
               </div>

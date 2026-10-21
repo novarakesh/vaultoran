@@ -374,6 +374,77 @@ const deleteDocument = async (req, res, next) => {
   }
 };
 
+/**
+ * Update document metadata or upload a revised file version
+ * Requires 'edit' clearance (Owner, Admin, or shared Viewer with 'edit' clearance)
+ */
+const updateDocument = async (req, res, next) => {
+  try {
+    const doc = req.document;
+    const { title, category } = req.body;
+
+    const changes = {};
+
+    if (title && title.trim()) {
+      changes.oldTitle = doc.title;
+      doc.title = title.trim();
+      changes.newTitle = doc.title;
+    }
+
+    if (category && category.trim()) {
+      changes.oldCategory = doc.category;
+      doc.category = category.trim();
+      changes.newCategory = doc.category;
+    }
+
+    if (req.file) {
+      if (doc.filePath && fs.existsSync(doc.filePath) && doc.filePath !== req.file.path) {
+        try {
+          fs.unlinkSync(doc.filePath);
+        } catch (_) {}
+      }
+
+      const newHash = await computeFileHash(req.file.path);
+      const fileBuffer = fs.readFileSync(req.file.path);
+
+      changes.fileUpdated = true;
+      changes.oldHash = doc.fileHash;
+      changes.newHash = newHash;
+
+      doc.filePath = req.file.path;
+      doc.originalName = req.file.originalname;
+      doc.mimeType = req.file.mimetype;
+      doc.size = req.file.size;
+      doc.fileHash = newHash;
+      doc.fileData = fileBuffer;
+    }
+
+    await doc.save();
+
+    await recordAuditLog({
+      req,
+      userId: req.user._id,
+      action: 'UPLOAD',
+      documentId: doc._id,
+      metadata: {
+        type: 'DOCUMENT_REVISION_EDIT',
+        changes,
+      },
+    });
+
+    const updated = await Document.findById(doc._id)
+      .populate('owner', 'name email role')
+      .populate('sharedWith.user', 'name email role');
+
+    return res.status(200).json({
+      message: 'Document updated successfully.',
+      document: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadDocument,
   getDocuments,
@@ -381,4 +452,5 @@ module.exports = {
   downloadDocument,
   shareDocument,
   deleteDocument,
+  updateDocument,
 };

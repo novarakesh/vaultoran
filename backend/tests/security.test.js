@@ -170,6 +170,14 @@ describe('TrustVault Security Architecture Test Suite', () => {
 
     expect(shareRes.statusCode).toBe(403);
 
+    // Attempt to edit document metadata
+    const editRes = await request(app)
+      .put(`/api/documents/${testDoc._id}`)
+      .set('Authorization', `Bearer ${viewerReadToken}`)
+      .send({ title: 'Hacked Title Attempt' });
+
+    expect(editRes.statusCode).toBe(403);
+
     // Attempt to soft-delete
     const deleteRes = await request(app)
       .delete(`/api/documents/${testDoc._id}`)
