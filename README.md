@@ -61,9 +61,9 @@ npm run dev      # Runs on http://localhost:5173
 ---
 
 ## What Is Not Finished
-1. **Client-Side E2EE:** Verification is server-side SHA-256; browser WebCrypto encryption is not yet added.
-2. **Persistent Cloud Storage:** Files store to `./storage`; Render free-tier resets files on container restarts without S3/disk mounts.
-3. **MFA:** Single-factor JWT + passwords; lacks TOTP/authenticator 2FA.
+- **File Encryption:** Advanced file encryption is not implemented yet. Currently, the system checks whether files have been changed.
+- **Cloud Storage:** Files are stored on the server. They may be lost if the hosting server restarts.
+- **Extra Login Security:** Currently, users log in with an email and password. Two-step verification and email password recovery are not available yet.
 
 ---
 
