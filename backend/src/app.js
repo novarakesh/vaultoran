@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const mongoSanitize = require('express-mongo-sanitize');
 const config = require('./config/env');
+const mongoose = require('mongoose');
 const { apiLimiter } = require('./middleware/rateLimit');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -78,10 +79,13 @@ app.use(
 // 6. Global API Rate Limiting
 app.use('/api', apiLimiter);
 
-// 7. Health Check Endpoint
+// 7. Health Check Endpoint (instant response for cloud container warm-up)
 app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
   res.status(200).json({
     status: 'ok',
+    database: dbStatus,
     service: 'TrustVault Core Security Backend',
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),

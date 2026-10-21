@@ -8,6 +8,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Pre-warm Render Cloud Backend Instantly to Eliminate Cold-Start Login Delay -->
+    <link rel="preconnect" href="https://vaultoran-1.onrender.com" crossorigin>
+    <link rel="dns-prefetch" href="https://vaultoran-1.onrender.com">
+    <script>
+      (function() {
+        try {
+          var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          var apiUrl = isLocal ? 'http://localhost:5000' : 'https://vaultoran-1.onrender.com';
+          fetch(apiUrl + '/api/health', { method: 'GET', mode: 'cors', cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) { window.__VAULTORAN_SERVER_WARM__ = true; })
+            .catch(function() {});
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body class="bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-neutral-100 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-800 min-h-screen transition-colors duration-200">
     <div id="root"></div>

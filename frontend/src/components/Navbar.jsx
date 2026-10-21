@@ -2,20 +2,17 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useSidebar } from '../context/SidebarContext';
 import {
   Shield,
   LogOut,
   User,
   Sun,
-  Moon,
-  Menu
+  Moon
 } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout, isAdmin, isOwner } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const { isSidebarExpanded, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
 
   const getDashboardTitle = () => {
@@ -68,24 +65,6 @@ const Navbar = () => {
 
           {/* User Profile & Actions */}
           <div className="flex items-center space-x-2.5">
-            {/* Sidebar Toggle Hamburger Button */}
-            {user && (
-              <button
-                type="button"
-                id="navbar-sidebar-toggle"
-                onClick={toggleSidebar}
-                aria-label={isSidebarExpanded ? 'Collapse sidebar to icons' : 'Expand sidebar menu'}
-                title={isSidebarExpanded ? 'Collapse sidebar to icons' : 'Expand sidebar menu'}
-                className={`p-2 rounded-xl transition border cursor-pointer shadow-2xs focus:outline-none flex items-center justify-center ${
-                  isSidebarExpanded
-                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400'
-                    : 'text-slate-700 dark:text-neutral-200 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 border-slate-200 dark:border-neutral-700'
-                }`}
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-            )}
-
             {/* Dark / Light Mode Toggle Button */}
             <button
               type="button"

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, Mail, User, AlertCircle, ShieldAlert, Zap, LogOut } from 'lucide-react';
+import apiClient from '../api/client';
+import { Shield, Lock, Mail, User, AlertCircle, ShieldAlert, Zap, LogOut, CheckCircle2 } from 'lucide-react';
 
 const LoginPage = () => {
   const [searchParams] = useSearchParams();
@@ -13,10 +14,58 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('viewer');
   const [loading, setLoading] = useState(false);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
+  const [activeQuickRole, setActiveQuickRole] = useState(null);
+  const [serverStatus, setServerStatus] = useState(() => {
+    return typeof window !== 'undefined' && window.__VAULTORAN_SERVER_WARM__ ? 'ready' : 'checking';
+  });
   const [error, setError] = useState('');
 
   const { user: currentUser, login, register, logout, revocationNotice, setRevocationNotice } = useAuth();
   const navigate = useNavigate();
+
+  // Instant server health probe to wake Render backend and notify user
+  useEffect(() => {
+    let isMounted = true;
+    let pollTimer;
+
+    const pingEnclave = async () => {
+      try {
+        await apiClient.get('/api/health');
+        if (isMounted) {
+          setServerStatus('ready');
+          if (typeof window !== 'undefined') window.__VAULTORAN_SERVER_WARM__ = true;
+        }
+      } catch (err) {
+        if (isMounted) {
+          setServerStatus('waking');
+          pollTimer = setTimeout(pingEnclave, 3000);
+        }
+      }
+    };
+
+    pingEnclave();
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
+  }, []);
+
+  // Track elapsed loading seconds to surface reassuring status during cold boots
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      setLoadingSeconds(0);
+      timer = setInterval(() => {
+        setLoadingSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setLoadingSeconds(0);
+      setActiveQuickRole(null);
+    }
+    return () => clearInterval(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (searchParams.get('mode') === 'signup') {
@@ -30,6 +79,7 @@ const LoginPage = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setActiveQuickRole('custom');
 
     try {
       if (isLogin) {
@@ -50,12 +100,13 @@ const LoginPage = () => {
   };
 
   // Instant 1-Click Role Login
-  const handleQuickLogin = async (demoEmail, demoPassword) => {
+  const handleQuickLogin = async (demoEmail, demoPassword, roleTag) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
     setIsLogin(true);
     setError('');
     setLoading(true);
+    setActiveQuickRole(roleTag);
     if (setRevocationNotice) setRevocationNotice(null);
 
     try {
@@ -113,12 +164,27 @@ const LoginPage = () => {
 
         <div className="bg-white dark:bg-[#141414] p-8 rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-xl relative overflow-hidden transition-colors duration-200">
           {/* Top Branding */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md">
               <Shield className="w-8 h-8 text-white stroke-[2.5]" />
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Vaultoran Security Portal</h1>
             <p className="text-xs text-slate-600 dark:text-neutral-400 font-mono mt-1 font-semibold">Zero-Trust Confidential Document Exchange</p>
+
+            {/* Cloud Cold-Start / Health Enclave Status Pill */}
+            <div className="mt-3 flex items-center justify-center">
+              {serverStatus === 'ready' ? (
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Cloud Enclave Online • Instant Login Ready</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] font-mono font-medium text-amber-800 dark:text-amber-200 shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                  <span>Free-tier cloud backend waking up... (~10-15s first visit)</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Quick 1-Click Role Login Bar */}
@@ -135,26 +201,47 @@ const LoginPage = () => {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => handleQuickLogin('admin@trustvault.io', 'AdminVault#2026!')}
-                className="py-2 px-2 rounded-xl bg-purple-50 dark:bg-neutral-800 hover:bg-purple-100 dark:hover:bg-neutral-700 border border-purple-200 dark:border-neutral-700 text-[11px] font-extrabold text-purple-700 dark:text-purple-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer"
+                onClick={() => handleQuickLogin('admin@trustvault.io', 'AdminVault#2026!', 'admin')}
+                className="py-2 px-2 rounded-xl bg-purple-50 dark:bg-neutral-800 hover:bg-purple-100 dark:hover:bg-neutral-700 border border-purple-200 dark:border-neutral-700 text-[11px] font-extrabold text-purple-700 dark:text-purple-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer flex items-center justify-center space-x-1"
               >
-                Admin SOC
+                {loading && activeQuickRole === 'admin' ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-purple-400 border-t-purple-700 rounded-full animate-spin"></div>
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <span>Admin SOC</span>
+                )}
               </button>
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => handleQuickLogin('owner@trustvault.io', 'OwnerVault#2026!')}
-                className="py-2 px-2 rounded-xl bg-sky-50 dark:bg-neutral-800 hover:bg-sky-100 dark:hover:bg-neutral-700 border border-sky-200 dark:border-neutral-700 text-[11px] font-extrabold text-sky-700 dark:text-sky-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer"
+                onClick={() => handleQuickLogin('owner@trustvault.io', 'OwnerVault#2026!', 'owner')}
+                className="py-2 px-2 rounded-xl bg-sky-50 dark:bg-neutral-800 hover:bg-sky-100 dark:hover:bg-neutral-700 border border-sky-200 dark:border-neutral-700 text-[11px] font-extrabold text-sky-700 dark:text-sky-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer flex items-center justify-center space-x-1"
               >
-                Owner
+                {loading && activeQuickRole === 'owner' ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-sky-400 border-t-sky-700 rounded-full animate-spin"></div>
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <span>Owner</span>
+                )}
               </button>
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => handleQuickLogin('viewer1@trustvault.io', 'Viewer1Vault#2026!')}
-                className="py-2 px-2 rounded-xl bg-emerald-50 dark:bg-neutral-800 hover:bg-emerald-100 dark:hover:bg-neutral-700 border border-emerald-200 dark:border-neutral-700 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer"
+                onClick={() => handleQuickLogin('viewer1@trustvault.io', 'Viewer1Vault#2026!', 'viewer')}
+                className="py-2 px-2 rounded-xl bg-emerald-50 dark:bg-neutral-800 hover:bg-emerald-100 dark:hover:bg-neutral-700 border border-emerald-200 dark:border-neutral-700 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 transition text-center shadow-xs disabled:opacity-50 cursor-pointer flex items-center justify-center space-x-1"
               >
-                Viewer
+                {loading && activeQuickRole === 'viewer' ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-emerald-400 border-t-emerald-700 rounded-full animate-spin"></div>
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <span>Viewer</span>
+                )}
               </button>
             </div>
           </div>
@@ -271,6 +358,22 @@ const LoginPage = () => {
               </div>
             )}
 
+            {/* Transparent progress notification if cold boot is occurring */}
+            {loading && loadingSeconds >= 2 && (
+              <div className="p-3 my-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-center animate-pulse">
+                <div className="flex items-center justify-center space-x-2 text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-ping"></div>
+                  <span>Waking Cloud Enclave ({loadingSeconds}s)...</span>
+                </div>
+                <p className="text-[10px] text-slate-600 dark:text-neutral-400 mt-1 font-mono">
+                  First-time visit initiates container spin-up on Render free tier. Almost ready!
+                </p>
+                <div className="w-full bg-indigo-200/50 dark:bg-indigo-900/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full animate-pulse w-3/4"></div>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -279,7 +382,7 @@ const LoginPage = () => {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Authenticating...</span>
+                  <span>{loadingSeconds >= 2 ? `Waking Enclave (${loadingSeconds}s)...` : 'Authenticating...'}</span>
                 </>
               ) : (
                 <span>{isLogin ? 'Sign In & Enter Vault' : 'Sign Up & Create Account'}</span>

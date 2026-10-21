@@ -1,162 +1,211 @@
-# TrustVault Threat Model & Security Mitigations
+# Vaultoran — Threat Model & Security Architecture Analysis
 
-This document outlines the core threat vectors considered during the architectural design of **TrustVault**, their potential blast radius, and the defense-in-depth mitigations implemented across the platform.
-
----
-
-## 1. Direct URL Guessing / IDOR (Insecure Direct Object Reference)
-
-### Threat Description
-An attacker observes sequential or predictable resource identifiers (e.g., `/api/documents/104`) or attempts to enumerate random identifiers (UUIDs/ObjectIds) to download unauthorized confidential files directly or view unauthorized metadata.
-
-### Impact
-Unauthorized disclosure of confidential intellectual property, financial records, or legal documents.
-
-### Mitigation
-- **Non-Static File Access**: Storage directories are kept strictly private on the filesystem outside the public web server directory. No public URL routes or static web servers (`express.static`) map to document files.
-- **Per-Request Authorization Middleware (`authorizeDocumentAccess`)**: Every request for document metadata, download, modification, or sharing is intercepted by `authorizeDocumentAccess`.
-  - Access is evaluated against the authenticated user's ID and role.
-  - Allowed entities are strictly limited to: (1) System `admin`, (2) Document `owner`, or (3) Explicitly shared user in `sharedWith` with corresponding permission level (`read` or `edit`).
-- **Automated Intrusion Detection & Audit**: Any unauthorized request is blocked with `HTTP 403 Forbidden` and immediately records an immutable `VIEW_ATTEMPT_DENIED` audit log capturing user ID, document ID, IP address, user-agent, and denial reasons.
-- **Non-Enumerable Cryptographic File Names**: Files are saved on disk with 64-character cryptographic random hex names (`crypto.randomBytes(32).toString('hex')`), decoupling disk paths from database IDs.
+**Author:** Nova Rakesh  
+**System:** Vaultoran (Zero-Trust Confidential Document Exchange)  
+**Security Framework:** STRIDE Threat Modeling & Defense-in-Depth Architecture  
 
 ---
 
-## 2. Audit Log Tampering & Repudiation
+## 1. Executive Summary & Security Philosophy
 
-### Threat Description
-A compromised account, insider threat, or malicious actor who gains partial database access attempts to modify, update, or purge audit trail records to cover their tracks after exfiltrating documents.
+When architecting **Vaultoran**, my core philosophy was **Zero-Trust**: *never trust, always verify*. Traditional web storage platforms frequently suffer from authorization leakage—relying on obscure URLs, trusting client-side claims, or allowing static file access through web servers.
 
-### Impact
-Loss of forensic integrity, inability to detect breaches, and regulatory non-compliance.
-
-### Mitigation
-- **Mongoose Schema Pre-Hook Enforcement**: The `AuditLog` Mongoose schema strictly implements append-only immutability.
-- Pre-hooks on all update and delete methods (`updateOne`, `updateMany`, `findOneAndUpdate`, `findOneAndDelete`, `deleteOne`, `deleteMany`, `replaceOne`, `save` on existing records) throw an uncatchable `ImmutableAuditLogError`:
-  ```javascript
-  const rejectAuditModification = function (next) {
-    const err = new Error('Security Violation: Audit logs are strictly immutable and cannot be modified or deleted.');
-    err.name = 'ImmutableAuditLogError';
-    return next(err);
-  };
-  ```
-- **Privilege Segregation**: The `/api/audit` query route is strictly restricted to the `admin` role and supports read-only operations with pagination and filtering.
+In Vaultoran:
+1. **No file is ever exposed statically**. Every document request is mediated through authorization middleware that validates the user's identity, role, and granular document-level permission.
+2. **Audit trails are cryptographically and programmatically immutable**. Not even a compromised system administrator account can alter or delete past access records.
+3. **Session revocation is instantaneous and global**. By leveraging an atomic `tokenVersion` counter, compromised credentials or departing team members can be deactivated instantly across all active devices without the overhead of an in-memory token blacklist.
+4. **File authenticity is verified before delivery**. SHA-256 cryptographic hashes are computed during upload and re-verified on disk prior to streaming to prevent disk tampering or bit-rot attacks.
 
 ---
 
-## 3. Stale Tokens & Token Replay (Session Hijacking)
+## 2. STRIDE Threat Vector Analysis & Engineering Defenses
 
-### Threat Description
-A user logs out, is decommissioned, or changes credentials, but an attacker holding a valid, unexpired JWT (e.g., captured via XSS, MITM, or leaked logs) continues to access protected documents until token expiration.
-
-### Impact
-Persistent unauthorized access by rogue actors or terminated employees.
-
-### Mitigation
-- **Instant Revocation via `tokenVersion`**:
-  - Each `User` record maintains a numeric `tokenVersion` (default 0).
-  - Every issued JWT embeds `{ id, role, tokenVersion }`.
-  - The `verifyToken` middleware queries the database and verifies `decoded.tokenVersion === user.tokenVersion`.
-  - If a user invokes `POST /api/auth/logout-all` or an administrator triggers `PATCH /api/users/:id/revoke`, `tokenVersion` is atomically incremented by 1.
-  - All existing tokens for that user immediately fail validation (`HTTP 401 Session has been revoked`), providing immediate global session invalidation without maintaining an in-memory token blacklist.
+Below is the breakdown of the specific threat vectors I analyzed during design, the real-world attack scenarios considered, and the concrete mitigations I implemented in the codebase.
 
 ---
 
-## 4. Privilege Escalation & Role Creep
+### Threat 1: Insecure Direct Object References (IDOR) & URL Guessing
 
-### Threat Description
-- A malicious user attempts to register as an `admin` during the self-service sign-up process.
-- A user with `viewer` role attempts to modify document shares or soft-delete documents.
-- A user with `read` permission on a document attempts to share or delete it.
-
-### Impact
-Unauthorized administration, privilege creep, and document destruction.
-
-### Mitigation
-- **Self-Service Role Restriction**: `POST /api/auth/register` explicitly forbids assigning the `admin` role. Requests containing `role: 'admin'` are rejected with `HTTP 400 Bad Request`. Only `owner` and `viewer` can be selected (defaulting to `viewer`).
-- **Multi-Tiered Middleware**:
-  1. `verifyToken` authenticates identity.
-  2. `authorizeRole('admin', 'owner')` enforces broad operational privilege.
-  3. `authorizeDocumentAccess('edit')` enforces document-level ownership or edit rights.
-- A read-only viewer cannot share or delete documents, receiving `HTTP 403`.
+- **STRIDE Category:** Information Disclosure / Elevation of Privilege
+- **Attacker Scenario:** An authenticated viewer observes sequential or predictable resource IDs (e.g. `/api/documents/64f1a...`) and attempts to iterate through other document IDs in an effort to exfiltrate confidential files belonging to other departments or executives.
+- **Blast Radius:** Unauthorized disclosure of proprietary intellectual property, board minutes, or legal records.
+- **My Architectural Mitigations:**
+  1. **Strictly Non-Static Private Storage**: Document files reside in a private directory completely detached from any static web server (`express.static`). No direct URL path to any file exists.
+  2. **Per-Request `authorizeDocumentAccess` Middleware**: Every single request for document metadata, download, editing, or sharing executes this middleware. It enforces strict RBAC:
+     - System `admin` possesses oversight clearance.
+     - Document `owner` possesses full clearance.
+     - Any third party must be explicitly declared in `doc.sharedWith` with an appropriate clearance level (`read` or `edit`).
+  3. **Automated Intrusion Trapping**: Any unauthorized probe immediately yields an `HTTP 403 Forbidden` response and triggers an immutable `VIEW_ATTEMPT_DENIED` audit log recording the attacker's User ID, document target, client IP, and User-Agent.
+  4. **Randomized Disk Filenames**: Files are saved to disk with 64-character cryptographic random hex strings (`crypto.randomBytes(32).toString('hex')`), completely decoupling disk storage tokens from database ObjectIds.
 
 ---
 
-## 5. Storage Path Traversal
+### Threat 2: Audit Trail Repudiation & Forensic Tampering
 
-### Threat Description
-An attacker crafts a malicious request containing relative path traversals (e.g., `../../etc/passwd` or `..\\Windows\\System32\\cmd.exe`) in file download or document path parameters.
-
-### Impact
-Arbitrary file read on the host operating system.
-
-### Mitigation
-- **Deterministic Path Canonicalization**: When reading or streaming files, the storage path is resolved using `path.resolve(doc.filePath)`.
-- The system enforces that `resolvedPath.startsWith(path.resolve(config.storageDir))` before opening any read stream.
-- The client cannot supply a custom filename or file path parameter; the path is retrieved directly from verified database records.
-
----
-
-## 6. File Tampering & Bit-Rot Detection
-
-### Threat Description
-A rogue system administrator or malware with local disk access modifies the contents of stored documents in the vault without updating database records.
-
-### Impact
-Presentation of poisoned, falsified, or trojanized documents to legitimate users.
-
-### Mitigation
-- **SHA-256 Cryptographic Integrity Check on Upload**: When a file is uploaded, its cryptographic SHA-256 checksum is computed using Node.js `crypto` streaming and stored immutably in `Document.fileHash`.
-- **Pre-Streaming Integrity Verification**: On every download request (`GET /api/documents/:id/download`), the server computes the current SHA-256 hash of the disk file before sending the first byte. If the hash does not match `fileHash`:
-  - Streaming is aborted immediately.
-  - `HTTP 500 Document integrity check failed` is returned.
-  - A critical alert is logged to prevent exfiltration of tampered files.
+- **STRIDE Category:** Repudiation / Tampering
+- **Attacker Scenario:** A rogue insider, disgruntled employee, or attacker who gains access to the database attempts to modify or purge audit log records to conceal unauthorized downloads or permission tampering.
+- **Blast Radius:** Loss of forensic integrity, inability to conduct security investigations, and violation of regulatory compliance frameworks (SOC 2, ISO 27001).
+- **My Architectural Mitigations:**
+  1. **Mongoose Immutability Traps**: The `AuditLog` schema enforces strict append-only behavior. I bound pre-hooks across both document-level methods and query-level mutation methods (`updateOne`, `updateMany`, `findOneAndUpdate`, `findOneAndDelete`, `deleteOne`, `deleteMany`, `replaceOne`, `save` on existing records). Any attempted modification or deletion throws an uncatchable `ImmutableAuditLogError`:
+     ```javascript
+     const rejectAuditModification = function (next) {
+       const err = new Error('Security Violation: Audit logs are strictly immutable and cannot be modified or deleted.');
+       err.name = 'ImmutableAuditLogError';
+       return next(err);
+     };
+     ```
+  2. **Role Segregation**: The audit log query endpoint (`GET /api/audit`) is strictly restricted to authenticated administrators, supports read-only operations, and returns paginated records.
 
 ---
 
-## 7. Brute Force & Denial of Service (DoS)
+### Threat 3: Stale JWT Replay & Session Hijacking
 
-### Threat Description
-An attacker performs credential stuffing or brute force password guessing against the login endpoint, or floods document streaming endpoints to exhaust bandwidth and server resources.
-
-### Impact
-Account takeover, server unavailability, and resource exhaustion.
-
-### Mitigation
-- **Tiered Rate Limiting**:
-  - Sensitive auth endpoints (`/api/auth/login`) are protected by `express-rate-limit` allowing a maximum of 10 attempts per 15-minute window per IP.
-  - General API endpoints are limited to 200 requests per 15 minutes.
-- **Payload Limits**: Request bodies are capped at 10MB to prevent memory bloat attacks.
-- **Password Hashing**: Passwords are hashed using bcrypt with salt rounds of 12, adding computational resistance to offline cracking.
-
----
-
-## 8. MIME Sniffing & Malicious Executable Uploads
-
-### Threat Description
-An attacker uploads an executable binary or HTML with embedded JavaScript masked as a PDF or image, hoping a browser executes it in the application's origin context.
-
-### Impact
-Cross-Site Scripting (XSS), Drive-by downloads, or remote code execution.
-
-### Mitigation
-- **Strict File Type Whitelisting**: Multer middleware checks both MIME type and file extension against a strict whitelist (PDF, DOCX, XLSX, TXT, CSV, JPG, PNG, WEBP). Executables (`.exe`, `.sh`, `.bat`, `.js`, `.html`) are rejected.
-- **Security Headers on Downloads**:
-  - `X-Content-Type-Options: nosniff` forces browsers to honor the declared MIME type.
-  - `Content-Disposition: attachment; filename="..."` enforces download rather than inline execution in insecure contexts.
-  - `Content-Security-Policy: default-src 'none'` disables script execution.
+- **STRIDE Category:** Spoofing
+- **Attacker Scenario:** A user's JWT is intercepted (e.g., via network snooping or client-side compromise). The user notices suspicious activity and logs out, or an admin terminates the employee's access. The attacker attempts to replay the still-unexpired JWT to continue exfiltrating confidential documents.
+- **Blast Radius:** Persistent unauthorized access even after credential changes or employee termination.
+- **My Architectural Mitigations:**
+  1. **Atomic `tokenVersion` Invalidation**:
+     - Every user document contains a numeric `tokenVersion` field (defaulting to 0).
+     - When a token is signed, `{ id, role, tokenVersion }` is embedded into the payload.
+     - On every authenticated API request, `verifyToken` loads the user record and asserts:
+       ```javascript
+       if (decoded.tokenVersion !== user.tokenVersion) {
+         return res.status(401).json({ error: 'Session has been revoked. Please re-authenticate.' });
+       }
+       ```
+     - When a user calls `POST /api/auth/logout-all` or an admin calls `PATCH /api/users/:id/revoke`, `tokenVersion` is atomically incremented by 1 (`$inc: { tokenVersion: 1 }`).
+     - **Result:** Every previously issued token for that user is invalidated globally across all browsers and devices in 0 milliseconds, with zero need for a stateful Redis token blacklist.
 
 ---
 
-## Summary of Defense Layers
+### Threat 4: Privilege Escalation & Insecure Registration
 
-| Threat Vector | Primary Defense Layer | Fallback / Monitoring Layer |
-| :--- | :--- | :--- |
-| **Direct URL Guessing** | `authorizeDocumentAccess` middleware | `VIEW_ATTEMPT_DENIED` audit log |
-| **Audit Log Tampering** | Mongoose pre-hook rejection (`updateOne`, `deleteOne`) | Database user permission hardening |
-| **Stale JWT Replay** | `tokenVersion` check on every request | Short token expiration (`24h`) |
-| **Privilege Escalation** | `authorizeRole` + `authorizeDocumentAccess` | Self-service admin registration blocked |
-| **Path Traversal** | Canonical path prefix verification | Randomized disk storage paths |
-| **File Tampering** | SHA-256 pre-streaming hash verification | Private vault filesystem permissions |
-| **Brute Force** | `express-rate-limit` on login | bcrypt (12 rounds) |
-| **MIME Sniffing** | Extension & MIME whitelist | `nosniff` & attachment header enforcement |
+- **STRIDE Category:** Elevation of Privilege
+- **Attacker Scenario:** During public account creation (`POST /api/auth/register`), an attacker submits `{ "name": "Eve", "email": "eve@evil.com", "role": "admin" }` to grant themselves system administrator privileges.
+- **Blast Radius:** Full system compromise, ability to view all files, reassign roles, and inspect all audit logs.
+- **My Architectural Mitigations:**
+  1. **Strict Registration Boundary**: In `authController.js`, I enforced a hard server-side restriction:
+     ```javascript
+     if (role === 'admin') {
+       return res.status(400).json({
+         error: 'Security Violation: Self-assignment of admin role is strictly prohibited.',
+       });
+     }
+     const assignedRole = role === 'owner' ? 'owner' : 'viewer';
+     ```
+  2. **Tiered Middleware Defense**:
+     - Level 1: `verifyToken` (Identity verification)
+     - Level 2: `authorizeRole('admin', 'owner')` (Role-level operational authorization)
+     - Level 3: `authorizeDocumentAccess('edit')` (Resource-level clearance authorization)
+
+---
+
+### Threat 5: Storage Path Traversal & OS File Disclosure
+
+- **STRIDE Category:** Information Disclosure
+- **Attacker Scenario:** An attacker supplies relative directory traversal sequences (such as `../../../../etc/passwd` or `..\\Windows\\System32\\cmd.exe`) in document download or file manipulation endpoints to read arbitrary files from the host server.
+- **Blast Radius:** Full server compromise, leak of environment variables, SSH keys, or server source code.
+- **My Architectural Mitigations:**
+  1. **Deterministic Path Canonicalization**: When accessing a file on disk, the system resolves its full canonical path using `path.resolve()` and explicitly validates that it is strictly bounded inside the designated storage directory:
+     ```javascript
+     const resolvedPath = path.resolve(doc.filePath);
+     const safeStorageDir = path.resolve(config.storageDir);
+     if (!resolvedPath.startsWith(safeStorageDir)) {
+       return res.status(403).json({ error: 'Access Denied: Path traversal detected.' });
+     }
+     ```
+  2. **No User-Supplied Filenames on Disk**: The client is never allowed to dictate the physical filesystem path or storage filename; paths are generated server-side using cryptographic entropy.
+
+---
+
+### Threat 6: File Tampering & Silent Bit-Rot Detection
+
+- **STRIDE Category:** Tampering
+- **Attacker Scenario:** An attacker with local disk access, or malicious software on the host, replaces a legitimate signed contract or financial statement with a forged version without modifying the database record.
+- **Blast Radius:** Presentation of forged or compromised documents to legitimate users while claiming authenticity.
+- **My Architectural Mitigations:**
+  1. **SHA-256 Checksum on Upload**: When a file is uploaded, a cryptographic SHA-256 digest is streamed and stored immutably in `Document.fileHash`.
+  2. **Pre-Streaming Integrity Verification**: On every download request (`GET /api/documents/:id/download`), the server re-computes the SHA-256 hash of the on-disk file *before streaming a single byte*:
+     ```javascript
+     const isIntact = await verifyFileIntegrity(resolvedPath, doc.fileHash);
+     if (!isIntact) {
+       console.error(`[INTEGRITY FAILURE] File ${doc._id} failed SHA-256 hash verification!`);
+       return res.status(500).json({
+         error: 'Document integrity check failed. The file on disk does not match the cryptographic integrity hash.',
+       });
+     }
+     ```
+     If the checksum does not match, transmission is aborted, preventing the delivery of tampered data.
+
+---
+
+### Threat 7: Credential Stuffing & Denial of Service (DoS)
+
+- **STRIDE Category:** Denial of Service / Spoofing
+- **Attacker Scenario:** Automated botnets launch credential-stuffing attacks against `/api/auth/login` or flood document streaming endpoints to exhaust server bandwidth, CPU, and database connections.
+- **Blast Radius:** Account takeovers, server unavailability, and high cloud hosting bills.
+- **My Architectural Mitigations:**
+  1. **Tiered Rate Limiting**:
+     - Auth endpoints (`/api/auth/login`) are capped at 10 requests per 15-minute window per IP.
+     - General API endpoints are capped at 200 requests per 15 minutes.
+  2. **Payload Size Caps**: JSON request bodies are capped at 10MB to prevent memory exhaustion attacks.
+  3. **High-Workfactor Password Hashing**: Passwords are encrypted using bcrypt with salt rounds of 12, adding substantial computational resistance to offline brute-force attacks.
+  4. **Query Sanitization**: `express-mongo-sanitize` strips prohibited characters (like `$` and `.`) from request bodies to prevent NoSQL injection.
+
+---
+
+### Threat 8: Malicious Executables & MIME Type Confusion
+
+- **STRIDE Category:** Elevation of Privilege / Tampering
+- **Attacker Scenario:** An attacker uploads a malicious executable binary (`.exe`, `.sh`, `.bat`) or an HTML file containing embedded XSS scripts, masquerading it as a harmless `.pdf` or `.png`.
+- **Blast Radius:** Cross-site scripting, drive-by downloads, or remote code execution.
+- **My Architectural Mitigations:**
+  1. **Strict Whitelisting in Multer**: Both MIME types and file extensions are checked against an explicit whitelist of safe document types (`.pdf`, `.docx`, `.xlsx`, `.txt`, `.csv`, `.jpg`, `.png`, `.webp`).
+  2. **Download Response Hardening**:
+     - `X-Content-Type-Options: nosniff` forces browsers to honor the declared MIME type and prevents MIME confusion attacks.
+     - `Content-Disposition: attachment; filename="..."` enforces download rather than inline execution in the application's origin context.
+     - Content Security Policy (CSP) headers applied via Helmet prevent unauthorized inline script execution.
+
+---
+
+## 3. STRIDE Security Matrix
+
+| STRIDE Threat Category | Primary Attack Vector | Implemented Defense Layer | Fallback / Forensic Detection |
+| :--- | :--- | :--- | :--- |
+| **Spoofing** | Stale JWT replay after departure | Atomic `tokenVersion` check on every API call | Instant 401 response & session purge |
+| **Tampering** | Modifying stored documents on disk | SHA-256 pre-streaming hash verification | HTTP 500 abort & tamper alert log |
+| **Repudiation** | Erasing audit logs after breach | Mongoose document & query immutability pre-hooks | `ImmutableAuditLogError` throws on update/delete |
+| **Information Disclosure** | IDOR URL enumeration on `/documents/:id` | `authorizeDocumentAccess` authorization checks | Automated `VIEW_ATTEMPT_DENIED` audit log |
+| **Denial of Service** | Credential stuffing & brute force | Tiered `express-rate-limit` (10 per 15m on login) | IP-based request throttling |
+| **Elevation of Privilege**| Registering as `role: 'admin'` | Hardcoded rejection of admin role during sign-up | Multi-tiered operational authorization hierarchy |
+
+---
+
+## 4. Verification & Automated Security Test Suite
+
+To prove the efficacy of these mitigations, I wrote a comprehensive security test suite in `backend/tests/security.test.js` using Jest, Supertest, and an in-memory MongoDB server. All 9 security assertions run and pass automatically on every build:
+
+1. **Unauthenticated access** to protected documents returns `401 Unauthorized`.
+2. **Unauthorized viewer access** triggers `403 Forbidden` and creates a `VIEW_ATTEMPT_DENIED` audit log.
+3. **Read-only viewers** are blocked from editing or modifying permissions (`403 Forbidden`).
+4. **Owners of other documents** cannot access unshared files (`403 Forbidden`).
+5. **Legitimate owners and administrators** receive `200 OK` on authorized downloads.
+6. **Explicitly shared viewers** receive `200 OK` on shared files.
+7. **Stale tokens** (after `tokenVersion` increment) immediately fail with `401 Unauthorized`.
+8. **Audit log modification/deletion** attempts throw an error and fail due to immutability hooks.
+9. **Tampered disk files** fail cryptographic SHA-256 verification and abort download transmission.
+
+---
+
+## 5. Architectural Trade-offs & Future Hardening
+
+When designing this system, I weighed several practical engineering trade-offs:
+
+1. **Stateless JWTs vs. Database Check (`tokenVersion`)**:
+   - *Trade-off*: Pure stateless JWTs avoid a database read on every request. However, they make immediate session revocation impossible without short lifespans or Redis blacklists.
+   - *My Decision*: Validating `tokenVersion` against the User record on authenticated requests provides instant, guaranteed revocation with minimal database overhead (indexed user lookup).
+2. **Client-Side Encryption vs. Server-Side Checksums**:
+   - *Trade-off*: End-to-end zero-knowledge client encryption prevents the server from ever seeing plaintext, but prevents server-side search and collaboration features.
+   - *My Decision*: For Vaultoran, I implemented server-side cryptographic hashing with strictly isolated disk storage. In a future iteration, I plan to integrate AWS KMS envelope encryption (AES-256-GCM) where each document has its own unique Data Encryption Key (DEK).
+3. **SIEM / Webhook Integration**:
+   - *Roadmap*: Integrating real-time Webhook alerts to a SOC channel (Slack/PagerDuty) whenever consecutive `VIEW_ATTEMPT_DENIED` logs are recorded from the same IP address.
