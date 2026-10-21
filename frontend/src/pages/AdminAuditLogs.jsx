@@ -392,9 +392,6 @@ const AdminAuditLogs = () => {
                   <UserCheck className="w-4 h-4 mr-2 text-indigo-600 dark:text-indigo-400" />
                   Identity Governance & Role Assignment
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-neutral-400 font-mono mt-0.5 font-medium">
-                  Switch clearances between Admin, Owner, and Viewer. Changes enforce immediate RBAC access control.
-                </p>
               </div>
 
               <div className="flex items-center space-x-3">
