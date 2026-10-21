@@ -1,5 +1,12 @@
 const express = require('express');
-const { getUsers, getViewers, revokeUserSessions, updateUserRole, deleteUser } = require('../controllers/userController');
+const {
+  getUsers,
+  getViewers,
+  revokeUserSessions,
+  updateUserRole,
+  deleteUser,
+  createUser,
+} = require('../controllers/userController');
 const verifyToken = require('../middleware/verifyToken');
 const authorizeRole = require('../middleware/authorizeRole');
 
@@ -11,6 +18,13 @@ const router = express.Router();
  * @access  Private ('owner', 'admin')
  */
 router.get('/', verifyToken, authorizeRole('owner', 'admin'), getUsers);
+
+/**
+ * @route   POST /api/users
+ * @desc    Admin Governance: Provision a new user account ('admin', 'owner', 'viewer')
+ * @access  Private ('admin' only)
+ */
+router.post('/', verifyToken, authorizeRole('admin'), createUser);
 
 /**
  * @route   GET /api/users/viewers

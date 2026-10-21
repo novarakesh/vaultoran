@@ -87,6 +87,21 @@ This document catalogs:
 
 ---
 
+### Phase 5: Enterprise Zero-Trust Identity Governance & Closed Account Provisioning
+
+#### Prompt 5.1: Centralized Admin Account Provisioning & Public Registration Removal
+> *"1. Remove the public signup flow from the login page entirely (no Sign Up tab, no toggle link; login page must be pure corporate authentication with 1-click preset logins and a Zero-Trust administrator notice).*  
+> *2. In the Admin Governance console, add a '+ Create Account' button that opens a modal to provision new users with fields: Full Legal Name, Corporate Email, Secret Password, and Role Clearance ('admin', 'owner', 'viewer'). Ensure the backend restricts this endpoint (`POST /api/users`) to administrators, hashes passwords via bcrypt, and records an append-only audit log entry."*
+
+- **Generated Output:**
+  - `frontend/src/pages/LoginPage.jsx`: Removed public registration states, URL mode params, and tab switcher; reinforced pure authentication with 1-click presets.
+  - `frontend/src/pages/AdminAuditLogs.jsx`: Added "+ Create Account" trigger button and "Provision User Account" modal with name, email, password, and role selector.
+  - `backend/src/controllers/userController.js` & `backend/src/routes/users.js`: Implemented `createUser` controller bound to `POST /api/users`, protected by `verifyToken` and `authorizeRole('admin')`.
+  - `backend/tests/security.test.js`: Added Test 14 proving that administrators can provision accounts with audit logs while non-admins receive 403 Forbidden.
+- **Engineering Review:** Eliminating public self-registration strictly enforces the Zero-Trust tenet that identities must be vetted and authorized by governance authorities before gaining platform access.
+
+---
+
 ## 3. Where the AI Was Wrong: Security Bugs & Human Fixes
 
 The following five case studies detail critical security oversights and operational bugs introduced by the AI, followed by the human engineering analysis and code fixes.

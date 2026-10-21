@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import apiClient from '../api/client';
@@ -7,7 +7,6 @@ import {
   Shield,
   Lock,
   Mail,
-  User,
   AlertCircle,
   ShieldAlert,
   Zap,
@@ -20,14 +19,8 @@ import {
 } from 'lucide-react';
 
 const LoginPage = () => {
-  const [searchParams] = useSearchParams();
-  const initialMode = searchParams.get('mode');
-  const [isLogin, setIsLogin] = useState(initialMode !== 'signup');
-
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('viewer');
   const [loading, setLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [activeQuickRole, setActiveQuickRole] = useState(null);
@@ -36,7 +29,7 @@ const LoginPage = () => {
   });
   const [error, setError] = useState('');
 
-  const { user: currentUser, login, register, logout, revocationNotice, setRevocationNotice } = useAuth();
+  const { user: currentUser, login, logout, revocationNotice, setRevocationNotice } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -83,14 +76,6 @@ const LoginPage = () => {
     return () => clearInterval(timer);
   }, [loading]);
 
-  useEffect(() => {
-    if (searchParams.get('mode') === 'signup') {
-      setIsLogin(false);
-    } else if (searchParams.get('mode') === 'login') {
-      setIsLogin(true);
-    }
-  }, [searchParams]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -98,16 +83,10 @@ const LoginPage = () => {
     setActiveQuickRole('custom');
 
     try {
-      if (isLogin) {
-        const loggedUser = await login(email, password);
-        if (loggedUser.role === 'admin') navigate('/audit');
-        else if (loggedUser.role === 'owner') navigate('/owner');
-        else navigate('/viewer');
-      } else {
-        const newUser = await register(name, email, password, role);
-        if (newUser.role === 'owner') navigate('/owner');
-        else navigate('/viewer');
-      }
+      const loggedUser = await login(email, password);
+      if (loggedUser.role === 'admin') navigate('/audit');
+      else if (loggedUser.role === 'owner') navigate('/owner');
+      else navigate('/viewer');
     } catch (err) {
       setError(err.response?.data?.error || 'Authentication failed. Please verify credentials.');
     } finally {
@@ -119,7 +98,6 @@ const LoginPage = () => {
   const handleQuickLogin = async (demoEmail, demoPassword, roleTag) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
-    setIsLogin(true);
     setError('');
     setLoading(true);
     setActiveQuickRole(roleTag);
@@ -387,38 +365,6 @@ const LoginPage = () => {
                 </div>
               </div>
 
-              {/* Segmented Tab Control: SIGN IN / SIGN UP */}
-              <div className="flex rounded-xl bg-[#f1f4f9] dark:bg-neutral-800 p-1 mb-5 border border-slate-200/70 dark:border-neutral-700">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLogin(true);
-                    setError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition cursor-pointer ${
-                    isLogin
-                      ? 'bg-white dark:bg-[#222222] text-[#4338ca] dark:text-indigo-400 shadow-xs'
-                      : 'text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLogin(false);
-                    setError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition cursor-pointer ${
-                    !isLogin
-                      ? 'bg-white dark:bg-[#222222] text-[#4338ca] dark:text-indigo-400 shadow-xs'
-                      : 'text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  Sign Up
-                </button>
-              </div>
-
               {/* Error Alert */}
               {error && (
                 <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-center space-x-2.5 text-rose-700 dark:text-rose-300 text-xs font-semibold">
@@ -427,27 +373,8 @@ const LoginPage = () => {
                 </div>
               )}
 
-              {/* Login / Signup Form */}
+              {/* Secure Login Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {!isLogin && (
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1.5 font-bold">
-                      Full Legal Name
-                    </label>
-                    <div className="relative flex items-center">
-                      <User className="w-4 h-4 text-slate-400 dark:text-neutral-500 absolute left-3.5 pointer-events-none" />
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Eleanor Vance"
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#f8fafc] dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm font-medium focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-neutral-800 transition shadow-2xs"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1.5 font-bold">
                     Corporate Email
@@ -482,25 +409,6 @@ const LoginPage = () => {
                   </div>
                 </div>
 
-                {!isLogin && (
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1.5 font-bold">
-                      Account Role
-                    </label>
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#f8fafc] dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-neutral-800 transition font-medium"
-                    >
-                      <option value="viewer" className="dark:bg-neutral-800 dark:text-neutral-100">Viewer (Read-only / Delegated clearances)</option>
-                      <option value="owner" className="dark:bg-neutral-800 dark:text-neutral-100">Document Owner (Upload & manage private vault)</option>
-                    </select>
-                    <p className="text-[10px] text-slate-500 dark:text-neutral-400 mt-1 font-mono font-medium">
-                      *Admin credentials cannot be self-assigned for security integrity.
-                    </p>
-                  </div>
-                )}
-
                 {/* Progress bar if Render backend cold boot takes over 2s */}
                 {loading && loadingSeconds >= 2 && (
                   <div className="p-3 my-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-center animate-pulse">
@@ -527,44 +435,19 @@ const LoginPage = () => {
                     </>
                   ) : (
                     <>
-                      <span>{isLogin ? 'Sign In & Enter Vault' : 'Sign Up & Create Account'}</span>
+                      <span>Sign In & Enter Vault</span>
                       <ArrowRight className="w-4 h-4 ml-0.5" />
                     </>
                   )}
                 </button>
               </form>
 
-              {/* Bottom Card Footer */}
-              <div className="mt-5 text-center text-xs">
-                {isLogin ? (
-                  <p className="text-slate-500 dark:text-neutral-400 font-medium">
-                    Don't have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsLogin(false);
-                        setError('');
-                      }}
-                      className="font-bold text-[#4338ca] dark:text-indigo-400 hover:underline cursor-pointer"
-                    >
-                      Sign Up
-                    </button>
-                  </p>
-                ) : (
-                  <p className="text-slate-500 dark:text-neutral-400 font-medium">
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsLogin(true);
-                        setError('');
-                      }}
-                      className="font-bold text-[#4338ca] dark:text-indigo-400 hover:underline cursor-pointer"
-                    >
-                      Sign In
-                    </button>
-                  </p>
-                )}
+              {/* Bottom Card Footer: Zero-Trust Governance Notice */}
+              <div className="mt-6 text-center">
+                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-neutral-800/60 border border-slate-200/80 dark:border-neutral-700/60 text-slate-500 dark:text-neutral-400 font-mono text-[11px]">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                  <span>Zero-Trust: Accounts provisioned by Administrator</span>
+                </div>
               </div>
             </div>
           </div>

@@ -192,10 +192,70 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+/**
+ * Create a new user account (Admin Governance Provisioning)
+ * Strictly restricted to 'admin' role
+ * Allows provisioning 'admin', 'owner', or 'viewer' accounts
+ */
+const createUser = async (req, res, next) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Please provide full legal name, corporate email, and password.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    const assignedRole = role ? role.toLowerCase() : 'viewer';
+    if (!['admin', 'owner', 'viewer'].includes(assignedRole)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, owner, or viewer.' });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(409).json({ error: 'An account with this email address already exists.' });
+    }
+
+    const passwordHash = await User.hashPassword(password);
+    const newUser = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      role: assignedRole,
+      tokenVersion: 0,
+    });
+
+    // Record immutable audit log of the governance provisioning action
+    await recordAuditLog({
+      req,
+      userId: req.user._id,
+      action: 'PERMISSION_CHANGE',
+      metadata: {
+        createdUserId: newUser._id.toString(),
+        createdEmail: newUser.email,
+        createdName: newUser.name,
+        createdRole: newUser.role,
+        governanceAction: 'USER_PROVISIONED',
+      },
+    });
+
+    return res.status(201).json({
+      message: `User ${newUser.name} (${newUser.email}) provisioned successfully with role [${newUser.role.toUpperCase()}].`,
+      user: newUser.toJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUsers,
   getViewers,
   revokeUserSessions,
   updateUserRole,
   deleteUser,
+  createUser,
 };

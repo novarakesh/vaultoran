@@ -116,10 +116,10 @@ const Navbar = () => {
               </>
             ) : (
               <Link
-                to="/login?mode=signup"
+                to="/login"
                 className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm"
               >
-                Sign Up
+                Sign In
               </Link>
             )}
           </div>

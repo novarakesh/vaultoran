@@ -459,4 +459,45 @@ describe('TrustVault Security Architecture Test Suite', () => {
 
     expect(viewerRes.statusCode).toBe(403);
   });
+
+  // Test 14: Admin can provision new accounts and non-admins receive 403
+  test('14. Admin can provision new user account with role, password, and audit log, while non-admins receive 403', async () => {
+    // Non-admin attempt should fail with 403
+    const viewerAttempt = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${viewerNoShareToken}`)
+      .send({
+        name: 'Rogue Provision',
+        email: 'rogue@test.io',
+        password: 'Password123!',
+        role: 'owner',
+      });
+
+    expect(viewerAttempt.statusCode).toBe(403);
+
+    // Admin attempt should succeed
+    const adminProvisionRes = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Security Officer',
+        email: 'officer@test.io',
+        password: 'SecurePassword2026!',
+        role: 'owner',
+      });
+
+    expect(adminProvisionRes.statusCode).toBe(201);
+    expect(adminProvisionRes.body.user).toBeDefined();
+    expect(adminProvisionRes.body.user.email).toBe('officer@test.io');
+    expect(adminProvisionRes.body.user.role).toBe('owner');
+    expect(adminProvisionRes.body.user.passwordHash).toBeUndefined(); // verify sanitization
+
+    // Verify audit log exists
+    const auditRecord = await AuditLog.findOne({
+      'metadata.governanceAction': 'USER_PROVISIONED',
+      'metadata.createdEmail': 'officer@test.io',
+    });
+    expect(auditRecord).not.toBeNull();
+    expect(auditRecord.action).toBe('PERMISSION_CHANGE');
+  });
 });

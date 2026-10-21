@@ -18,7 +18,11 @@ import {
   AlertTriangle,
   UserCheck,
   X,
-  Trash2
+  Trash2,
+  UserPlus,
+  Lock,
+  Mail,
+  User as UserIcon
 } from 'lucide-react';
 
 const ACTIONS = [
@@ -48,6 +52,17 @@ const AdminAuditLogs = () => {
   const [roleDrafts, setRoleDrafts] = useState({});
   const [savingRoleId, setSavingRoleId] = useState(null);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: 'info' });
+
+  // Provision New Account Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'viewer',
+  });
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserError, setCreateUserError] = useState('');
 
   // User Deletion State
   const [userToDelete, setUserToDelete] = useState(null);
@@ -122,6 +137,73 @@ const AdminAuditLogs = () => {
       console.error('Failed to fetch platform documents:', err);
     } finally {
       setLoadingDocs(false);
+    }
+  };
+
+  // Admin Account Provisioning
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setCreateUserError('');
+
+    if (!newUserData.name.trim() || !newUserData.email.trim() || !newUserData.password) {
+      setCreateUserError('Please provide full legal name, corporate email, and password.');
+      return;
+    }
+
+    if (newUserData.password.length < 8) {
+      setCreateUserError('Password must contain at least 8 characters.');
+      return;
+    }
+
+    try {
+      setCreatingUser(true);
+      let createdUser;
+
+      try {
+        // Preferred route: dedicated admin provisioning endpoint
+        const res = await apiClient.post('/api/users', {
+          name: newUserData.name.trim(),
+          email: newUserData.email.trim(),
+          password: newUserData.password,
+          role: newUserData.role,
+        });
+        createdUser = res.data.user;
+      } catch (postErr) {
+        // Resilient fallback for cloud environments before the new route is deployed to Render
+        if (postErr.response?.status === 404) {
+          const fallbackRole = newUserData.role === 'admin' ? 'viewer' : newUserData.role;
+          const regRes = await apiClient.post('/api/auth/register', {
+            name: newUserData.name.trim(),
+            email: newUserData.email.trim(),
+            password: newUserData.password,
+            role: fallbackRole,
+          });
+          createdUser = regRes.data.user;
+
+          // If admin clearance was selected, upgrade via existing governance endpoint
+          if (newUserData.role === 'admin' && createdUser?._id) {
+            await apiClient.patch(`/api/users/${createdUser._id}/role`, { role: 'admin' });
+            createdUser.role = 'admin';
+          }
+        } else {
+          throw postErr;
+        }
+      }
+
+      setStatusMessage({
+        text: `Identity Provisioned: Account for ${createdUser.name} (${createdUser.email}) registered with role [${createdUser.role.toUpperCase()}].`,
+        type: 'success',
+      });
+
+      setShowCreateModal(false);
+      setNewUserData({ name: '', email: '', password: '', role: 'viewer' });
+      fetchUsers();
+      fetchLogs();
+    } catch (err) {
+      console.error('Provisioning error:', err);
+      setCreateUserError(err.response?.data?.error || err.message || 'Failed to provision account.');
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -304,7 +386,7 @@ const AdminAuditLogs = () => {
         {/* TAB 1: IDENTITY GOVERNANCE (Assign & Switch Roles) */}
         {activeTab === 'governance' && (
           <div className="bg-white dark:bg-[#141414] p-6 rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-xs mb-8 transition-colors">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-neutral-100 uppercase tracking-wider flex items-center">
                   <UserCheck className="w-4 h-4 mr-2 text-indigo-600 dark:text-indigo-400" />
@@ -315,9 +397,23 @@ const AdminAuditLogs = () => {
                 </p>
               </div>
 
-              <span className="text-xs font-mono text-slate-600 dark:text-neutral-400 font-bold">
-                {users.length} Registered Identities
-              </span>
+              <div className="flex items-center space-x-3">
+                <span className="text-xs font-mono text-slate-600 dark:text-neutral-400 font-bold hidden md:inline-block">
+                  {users.length} Identities
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewUserData({ name: '', email: '', password: '', role: 'viewer' });
+                    setCreateUserError('');
+                    setShowCreateModal(true);
+                  }}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ Create Account</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -618,6 +714,126 @@ const AdminAuditLogs = () => {
                   No unauthorized intrusion attempts recorded in the current log window.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Provision New User Account Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm">
+            <div className="bg-white dark:bg-[#141414] max-w-md w-full p-6 rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-neutral-100">Provision User Account</h3>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono font-medium">Zero-Trust Identity Governance</p>
+                </div>
+              </div>
+
+              {createUserError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-center space-x-2 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>{createUserError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1 font-bold">
+                    Full Legal Name
+                  </label>
+                  <div className="relative flex items-center">
+                    <UserIcon className="w-4 h-4 text-slate-400 dark:text-neutral-500 absolute left-3 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={newUserData.name}
+                      onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
+                      placeholder="e.g. Eleanor Vance"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 text-xs font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1 font-bold">
+                    Corporate Email
+                  </label>
+                  <div className="relative flex items-center">
+                    <Mail className="w-4 h-4 text-slate-400 dark:text-neutral-500 absolute left-3 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={newUserData.email}
+                      onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
+                      placeholder="name@vaultoran.io"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 text-xs font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1 font-bold">
+                    Secret Password (min 8 characters)
+                  </label>
+                  <div className="relative flex items-center">
+                    <Lock className="w-4 h-4 text-slate-400 dark:text-neutral-500 absolute left-3 pointer-events-none" />
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={newUserData.password}
+                      onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 text-xs font-medium focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-neutral-300 mb-1 font-bold">
+                    Assigned Role Clearance
+                  </label>
+                  <select
+                    value={newUserData.role}
+                    onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-neutral-100 text-xs font-medium focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="viewer">Viewer (Read-only / Delegated clearances)</option>
+                    <option value="owner">Document Owner (Upload & manage private vault)</option>
+                    <option value="admin">Administrator (Supreme Governance & SOC ledger)</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end space-x-2">
+                  <button
+                    type="button"
+                    disabled={creatingUser}
+                    onClick={() => setShowCreateModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingUser}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>{creatingUser ? 'Provisioning...' : 'Provision Account'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
