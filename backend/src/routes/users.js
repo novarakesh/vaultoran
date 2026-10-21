@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, getViewers, revokeUserSessions, updateUserRole } = require('../controllers/userController');
+const { getUsers, getViewers, revokeUserSessions, updateUserRole, deleteUser } = require('../controllers/userController');
 const verifyToken = require('../middleware/verifyToken');
 const authorizeRole = require('../middleware/authorizeRole');
 
@@ -32,5 +32,12 @@ router.patch('/:id/revoke', verifyToken, authorizeRole('admin'), revokeUserSessi
  * @access  Private ('admin' only)
  */
 router.patch('/:id/role', verifyToken, authorizeRole('admin'), updateUserRole);
+
+/**
+ * @route   DELETE /api/users/:id
+ * @desc    Admin Governance: Delete a viewer or owner user account
+ * @access  Private ('admin' only)
+ */
+router.delete('/:id', verifyToken, authorizeRole('admin'), deleteUser);
 
 module.exports = router;

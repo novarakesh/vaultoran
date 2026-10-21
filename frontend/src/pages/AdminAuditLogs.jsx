@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
 import DocumentCard from '../components/DocumentCard';
@@ -16,7 +17,8 @@ import {
   CheckCircle,
   AlertTriangle,
   UserCheck,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 
 const ACTIONS = [
@@ -30,6 +32,7 @@ const ACTIONS = [
 ];
 
 const AdminAuditLogs = () => {
+  const { user: currentAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('governance');
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -45,6 +48,10 @@ const AdminAuditLogs = () => {
   const [roleDrafts, setRoleDrafts] = useState({});
   const [savingRoleId, setSavingRoleId] = useState(null);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: 'info' });
+
+  // User Deletion State
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   // System Documents
   const [documents, setDocuments] = useState([]);
@@ -143,6 +150,34 @@ const AdminAuditLogs = () => {
       });
     } finally {
       setSavingRoleId(null);
+    }
+  };
+
+  // Admin User Deletion (Viewers & Owners)
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setDeletingUser(true);
+      setStatusMessage({ text: '', type: 'info' });
+
+      const res = await apiClient.delete(`/api/users/${userToDelete._id}`);
+      setStatusMessage({
+        text: `Identity Purged: ${userToDelete.name} (${userToDelete.email}) [${userToDelete.role.toUpperCase()}] was permanently removed.`,
+        type: 'success',
+      });
+
+      setUserToDelete(null);
+      fetchUsers();
+      fetchLogs();
+    } catch (err) {
+      console.error('Delete user error:', err);
+      setStatusMessage({
+        text: `Deletion failed: ${err.response?.data?.error || err.message}`,
+        type: 'error',
+      });
+    } finally {
+      setDeletingUser(false);
     }
   };
 
@@ -344,17 +379,42 @@ const AdminAuditLogs = () => {
                             </select>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => handleUpdateRole(u._id, u.email)}
-                              disabled={savingRoleId === u._id || !hasChanged}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer ${
-                                hasChanged
-                                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                  : 'bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
-                              }`}
-                            >
-                              {savingRoleId === u._id ? 'Saving...' : 'Apply Role'}
-                            </button>
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleUpdateRole(u._id, u.email)}
+                                disabled={savingRoleId === u._id || !hasChanged}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer ${
+                                  hasChanged
+                                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                    : 'bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
+                                }`}
+                              >
+                                {savingRoleId === u._id ? 'Saving...' : 'Apply Role'}
+                              </button>
+
+                              {u.role === 'admin' ? (
+                                <span
+                                  title={
+                                    u._id === currentAdmin?._id
+                                      ? 'You cannot delete your own administrator account'
+                                      : 'Administrator accounts cannot be deleted'
+                                  }
+                                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold text-slate-400 dark:text-neutral-500 bg-slate-100/80 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700 cursor-not-allowed select-none"
+                                >
+                                  Protected
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setUserToDelete(u)}
+                                  title={`Delete ${u.role}: ${u.name} (${u.email})`}
+                                  className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600 border border-rose-200 dark:border-rose-900/60 hover:border-rose-600 transition shadow-xs cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -558,6 +618,73 @@ const AdminAuditLogs = () => {
                   No unauthorized intrusion attempts recorded in the current log window.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* User Deletion Confirmation Modal */}
+        {userToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm">
+            <div className="bg-white dark:bg-[#141414] max-w-md w-full p-6 rounded-2xl border border-rose-200 dark:border-rose-900/60 shadow-2xl">
+              <div className="flex items-center space-x-3 mb-4 text-rose-600 dark:text-rose-400">
+                <div className="p-2.5 rounded-xl bg-rose-100 dark:bg-rose-950/60">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-neutral-100">
+                    Confirm Identity Deletion
+                  </h3>
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 font-bold">
+                    Target Clearance: {userToDelete.role}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6 text-sm text-slate-600 dark:text-neutral-300 font-medium">
+                <p>
+                  Are you sure you want to permanently delete user{' '}
+                  <strong className="text-slate-900 dark:text-white font-bold">{userToDelete.name}</strong>{' '}
+                  (<span className="font-mono text-xs">{userToDelete.email}</span>)?
+                </p>
+
+                {userToDelete.role === 'owner' ? (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs">
+                    <p className="font-bold mb-1 flex items-center">
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
+                      Owner Account Notice:
+                    </p>
+                    All confidential documents owned by this account will be soft-deleted to maintain audit compliance, and all clearances will be revoked.
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-400 text-xs font-mono">
+                    This viewer will be purged from all document clearance access lists and active session credentials will be terminated immediately.
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-500 dark:text-neutral-400 italic">
+                  This administrative governance action is irreversible and recorded in the append-only immutable audit ledger.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  disabled={deletingUser}
+                  onClick={() => setUserToDelete(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingUser}
+                  onClick={handleDeleteUser}
+                  className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deletingUser ? 'Purging Identity...' : `Delete ${userToDelete.role === 'owner' ? 'Owner' : 'Viewer'}`}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

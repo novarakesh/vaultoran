@@ -327,4 +327,136 @@ describe('TrustVault Security Architecture Test Suite', () => {
     expect(res.body).toHaveProperty('error');
     expect(res.body.error).toMatch(/integrity check failed/i);
   });
+
+  // Test 10: Admin can delete a viewer, cleaning up shares and logging audit DELETE event
+  test('10. Admin can delete a viewer, cleaning up shares and creating audit DELETE record', async () => {
+    const passwordHash = await User.hashPassword('ViewerSecret#2026');
+    const viewerToDelete = await User.create({
+      name: 'Temporary Viewer',
+      email: 'tempviewer@test.io',
+      passwordHash,
+      role: 'viewer',
+    });
+
+    // Create a document shared with this viewer
+    const sharedDoc = await Document.create({
+      title: 'Doc Shared with Temp Viewer',
+      category: 'General',
+      owner: ownerUser1._id,
+      filePath: testFilePath,
+      originalName: 'test.pdf',
+      mimeType: 'application/pdf',
+      size: 100,
+      fileHash: testFileHash,
+      sharedWith: [{ user: viewerToDelete._id, permission: 'read' }],
+      isDeleted: false,
+    });
+
+    const res = await request(app)
+      .delete(`/api/users/${viewerToDelete._id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toMatch(/deleted successfully/i);
+
+    // Verify user is removed from database
+    const checkUser = await User.findById(viewerToDelete._id);
+    expect(checkUser).toBeNull();
+
+    // Verify user was pulled from sharedWith
+    const checkDoc = await Document.findById(sharedDoc._id);
+    expect(checkDoc.sharedWith.some((s) => s.user.toString() === viewerToDelete._id.toString())).toBe(false);
+
+    // Verify immutable audit log was created
+    const deleteLog = await AuditLog.findOne({
+      action: 'DELETE',
+      'metadata.targetEmail': viewerToDelete.email,
+    });
+    expect(deleteLog).toBeDefined();
+    expect(deleteLog).not.toBeNull();
+    expect(deleteLog.metadata.governanceAction).toBe('USER_DELETION');
+    expect(deleteLog.metadata.targetRole).toBe('viewer');
+  });
+
+  // Test 11: Admin can delete an owner, soft-deleting their owned documents
+  test('11. Admin can delete an owner, soft-deleting their owned documents and logging audit', async () => {
+    const passwordHash = await User.hashPassword('OwnerSecret#2026');
+    const ownerToDelete = await User.create({
+      name: 'Temporary Owner',
+      email: 'tempowner@test.io',
+      passwordHash,
+      role: 'owner',
+    });
+
+    // Create a document owned by this owner
+    const ownedDoc = await Document.create({
+      title: 'Doc Owned by Temp Owner',
+      category: 'Financial',
+      owner: ownerToDelete._id,
+      filePath: testFilePath,
+      originalName: 'financial.pdf',
+      mimeType: 'application/pdf',
+      size: 200,
+      fileHash: testFileHash,
+      sharedWith: [],
+      isDeleted: false,
+    });
+
+    const res = await request(app)
+      .delete(`/api/users/${ownerToDelete._id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toMatch(/deleted successfully/i);
+
+    // Verify user is removed
+    const checkUser = await User.findById(ownerToDelete._id);
+    expect(checkUser).toBeNull();
+
+    // Verify document was soft-deleted
+    const checkDoc = await Document.findById(ownedDoc._id);
+    expect(checkDoc.isDeleted).toBe(true);
+  });
+
+  // Test 12: Admin cannot delete another admin or themselves
+  test('12. Admin cannot delete another admin or their own account', async () => {
+    const passwordHash = await User.hashPassword('AdminSecret#2026');
+    const anotherAdmin = await User.create({
+      name: 'Another Admin',
+      email: 'anotheradmin@test.io',
+      passwordHash,
+      role: 'admin',
+    });
+
+    // Attempt to delete another admin
+    const deleteAdminRes = await request(app)
+      .delete(`/api/users/${anotherAdmin._id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(deleteAdminRes.statusCode).toBe(403);
+    expect(deleteAdminRes.body.error).toMatch(/Cannot delete an administrator account/i);
+
+    // Attempt to delete self
+    const deleteSelfRes = await request(app)
+      .delete(`/api/users/${adminUser._id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(deleteSelfRes.statusCode).toBe(400);
+    expect(deleteSelfRes.body.error).toMatch(/cannot delete their own account/i);
+  });
+
+  // Test 13: Non-admin users cannot delete users (403)
+  test('13. Non-admin users (viewer/owner) receive 403 when attempting to delete a user', async () => {
+    const ownerRes = await request(app)
+      .delete(`/api/users/${viewerNoShare._id}`)
+      .set('Authorization', `Bearer ${owner1Token}`);
+
+    expect(ownerRes.statusCode).toBe(403);
+
+    const viewerRes = await request(app)
+      .delete(`/api/users/${viewerNoShare._id}`)
+      .set('Authorization', `Bearer ${viewerNoShareToken}`);
+
+    expect(viewerRes.statusCode).toBe(403);
+  });
 });
