@@ -1,6 +1,6 @@
-# TrustVault — High-Security Confidential Document Sharing Platform
+# Vaultron — High-Security Confidential Document Sharing Platform
 
-TrustVault is an enterprise-grade backend architecture designed for zero-trust confidential document sharing. It enforces strict role-based access control, cryptographic integrity verification, instant token revocation, and immutable audit trails.
+Vaultron is an enterprise-grade backend architecture designed for zero-trust confidential document sharing. It enforces strict role-based access control, cryptographic integrity verification, instant token revocation, and immutable audit trails.
 
 ---
 
