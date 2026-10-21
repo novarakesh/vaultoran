@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -14,6 +14,10 @@ const Navbar = () => {
   const { user, logout, isAdmin, isOwner } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hide standalone navbar on login page to match full-screen hero layout
+  if (location.pathname === '/login') return null;
 
   const getDashboardTitle = () => {
     if (!user) return 'Confidential Document Security';
