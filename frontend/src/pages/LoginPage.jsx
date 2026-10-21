@@ -176,7 +176,6 @@ const LoginPage = () => {
               {serverStatus === 'ready' ? (
                 <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Cloud Enclave Online • Instant Login Ready</span>
                 </div>
               ) : (
                 <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] font-mono font-medium text-amber-800 dark:text-amber-200 shadow-2xs">
@@ -365,9 +364,6 @@ const LoginPage = () => {
                   <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-ping"></div>
                   <span>Waking Cloud Enclave ({loadingSeconds}s)...</span>
                 </div>
-                <p className="text-[10px] text-slate-600 dark:text-neutral-400 mt-1 font-mono">
-                  First-time visit initiates container spin-up on Render free tier. Almost ready!
-                </p>
                 <div className="w-full bg-indigo-200/50 dark:bg-indigo-900/40 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full animate-pulse w-3/4"></div>
                 </div>
