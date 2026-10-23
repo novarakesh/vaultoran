@@ -303,14 +303,14 @@ All authenticated endpoints require an `Authorization: Bearer <JWT>` header.
 
 ### Walkthrough Timeline & Feature Breakdown
 
-| Timestamp Range | Portal / Role | Feature / Workflow Demonstrated | Security & Architecture Validation |
-| :---: | :--- | :--- | :--- |
-| **0:00 – 0:15** | **Login & Authentication** (`admin@trustvault.io`) | **Enterprise Zero-Trust Login & 1-Click Role Presets** <br> Navigating to Vaultoran Security Portal; 1-click preset login for Administrator; Zero-Trust policy enforcement notice. | Eliminates open self-registration; validates credential-based session issuance and rate-limiting. |
-| **0:15 – 0:28** | **Admin SOC Console** (Administrator) | **Identity Governance & User Account Provisioning** <br> Admin triggers `+ Create Account` modal to provision a new user (`nova`), selects corporate role clearance (`viewer`), and validates password security policy. | Demonstrates closed user lifecycle management: only authorized administrators can provision accounts (`POST /api/users`). |
-| **0:28 – 0:38** | **Admin SOC Console** (Administrator) | **Immutable Real-Time Audit Ledger & SOC Telemetry** <br> Reviewing system-wide audit trail with filter tabs (`ALL`, `LOGIN`, `UPLOAD`, `DOWNLOAD`, `PERMISSION_CHANGE`); checking append-only immutability status ("Enforced"). | Proves Mongoose query-level pre-hook protection blocking log tampering/purging; verifies transparent client IP & timestamp logging. |
-| **0:38 – 0:48** | **Admin SOC Console** (Administrator) | **System Documents & Global Integrity Ledger** <br> Inspecting all repository documents, reviewing cryptographic SHA-256 integrity digests, file sizes, and owner attribution. | Proves multi-tenant document tracking and SHA-256 checksum persistence across storage envelopes. |
-| **0:48 – 1:15** | **Owner Portal** (Document Owner) | **Confidential Document Upload & Compartment Delegation** <br> Uploading sensitive files into isolated compartments; delegating clearance (`read` vs `edit`) to specific viewers; toggling access rights. | Enforces least-privilege compartmentalization; triggers atomic `PERMISSION_CHANGE` and `UPLOAD` audit events. |
-| **1:15 – 1:45** | **Platform Security Overview** | **Zero-Trust Role Switching & Multi-Tenant Isolation** <br> Testing role transitions (Admin, Owner, Viewer), instant session revocation killswitch, and verifying complete end-to-end access boundaries. | Confirms cross-tenant isolation (unauthorized requests return 403 Forbidden with automated denial logging). |
+| Timestamp Range | Portal / Role | Feature / Workflow Demonstrated |
+| :---: | :--- | :--- |
+| **0:00 – 0:15** | **Login & Authentication** (`admin@trustvault.io`) | **Enterprise Zero-Trust Login & 1-Click Role Presets** <br> Navigating to Vaultoran Security Portal; 1-click preset login for Administrator; Zero-Trust policy enforcement notice. |
+| **0:15 – 0:28** | **Admin SOC Console** (Administrator) | **Identity Governance & User Account Provisioning** <br> Admin triggers `+ Create Account` modal to provision a new user (`nova`), selects corporate role clearance (`viewer`), and validates password security policy. |
+| **0:28 – 0:38** | **Admin SOC Console** (Administrator) | **Immutable Real-Time Audit Ledger & SOC Telemetry** <br> Reviewing system-wide audit trail with filter tabs (`ALL`, `LOGIN`, `UPLOAD`, `DOWNLOAD`, `PERMISSION_CHANGE`); checking append-only immutability status ("Enforced"). |
+| **0:38 – 0:48** | **Admin SOC Console** (Administrator) | **System Documents & Global Integrity Ledger** <br> Inspecting all repository documents, reviewing cryptographic SHA-256 integrity digests, file sizes, and owner attribution. |
+| **0:48 – 1:15** | **Owner Portal** (Document Owner) | **Confidential Document Upload & Compartment Delegation** <br> Uploading sensitive files into isolated compartments; delegating clearance (`read` vs `edit`) to specific viewers; toggling access rights. |
+| **1:15 – 1:45** | **Platform Security Overview** | **Zero-Trust Role Switching & Multi-Tenant Isolation** <br> Testing role transitions (Admin, Owner, Viewer), instant session revocation killswitch, and verifying complete end-to-end access boundaries. |
 
 ---
 
