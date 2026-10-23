@@ -13,10 +13,11 @@
 | **Seed Data & Credentials** | Pre-seeded accounts for every role with 1-click presets in UI | Documented below |
 | **THREATS.md** | Comprehensive STRIDE threat model, asset catalog, & mitigations | [THREATS.md](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/THREATS.md) |
 | **PROMPTS.md** | Complete prompt log, where AI was used, and where AI was wrong | [PROMPTS.md](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/PROMPTS.md) |
-| **Automated Tests** | 13 automated security proofs (proving cross-tenant document isolation) | `npm test` passing |
+| **Automated Tests** | 14 automated security proofs (proving cross-tenant document isolation and admin account provisioning) | `npm test` passing |
 | **Database Schema & Setup** | MongoDB schema, seed scripts, and clean clone setup instructions | Documented below |
 | **API Documentation** | Complete endpoint reference with RBAC permissions per route | Documented below |
 | **Short Write-Up** | Built vs not built, permission model, AI analysis, unfinished work | Included below |
+| **Video Walkthrough** | [Google Drive Demo Video](https://drive.google.com/file/d/1t454xyEQEIrthwDnf0mwtfwAEk5F09Bf/view?usp=sharing) (1:45 runtime with timestamp breakdown) | Documented in Section 7 |
 
 ---
 
@@ -81,6 +82,7 @@ I used AI as an accelerator for boilerplate Express routing, Tailwind CSS dashbo
 2. **Self-Assigned Admin Privilege Escalation:** The AI generated a signup route that blindly accepted `role` from `req.body`. Any external user could send `{ "role": "admin" }` to gain full control. I added strict server-side validation restricting registration to `owner` or `viewer` only.
 3. **Cold-Start Port Deadlock on Render:** The AI nested `app.listen()` inside the MongoDB connection callback. On cloud free tiers (Render), MongoDB connection latency caused port-binding timeouts. I decoupled server port binding and implemented a pre-warm ping in `<head>`.
 4. **Orphaned ACLs on User Deletion:** The AI implemented a simple `findByIdAndDelete()` for user deletion. This left orphaned user IDs in document `sharedWith` arrays and left orphaned documents on disk. I rewrote user deletion to cascade soft-delete owned documents and atomic `$pull` the deleted user from all shared document lists.
+5. **Public User Signup on Login Page (Flawed Self-Registration):** The AI initially generated a public user signup page/tab directly on the login screen, allowing arbitrary external visitors to self-register accounts. In a zero-trust enterprise security architecture, public self-registration violates access boundaries. I changed that: I completely removed the public user signup page from the login interface and restricted account creation so that **only the administrator can create and provision new user accounts** (with explicitly designated roles and security policy checks) via the Admin Governance Console (`POST /api/users`).
 *(See [PROMPTS.md](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/PROMPTS.md) for the complete prompt log and code diffs).*
 
 ### E. What Is Unfinished (Honesty About Gaps)
@@ -101,10 +103,10 @@ cd backend
 npm test
 ```
 
-### Verification Matrix (All 13 Tests Passing)
+### Verification Matrix (All 14 Tests Passing)
 
 ```
-PASS tests/security.test.js (11.627 s)
+PASS tests/security.test.js
   TrustVault Security Architecture Test Suite
     √ 1. Unauthenticated request returns 401
     √ 2. A viewer with no share gets 403 on download, and a VIEW_ATTEMPT_DENIED log is created
@@ -119,6 +121,7 @@ PASS tests/security.test.js (11.627 s)
     √ 11. Admin can delete an owner, soft-deleting their owned documents and logging audit
     √ 12. Admin cannot delete another admin or their own account
     √ 13. Non-admin users (viewer/owner) receive 403 when attempting to delete a user
+    √ 14. Admin can provision new user account with role, password, and audit log, while non-admins receive 403
 ```
 
 > [!IMPORTANT]
@@ -283,6 +286,7 @@ All authenticated endpoints require an `Authorization: Bearer <JWT>` header.
 | Method | Endpoint | Allowed Roles | Description | Security Controls |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/users` | `owner`, `admin` | User directory lookup | Returns minimal profile fields for share delegation. |
+| `POST`| `/api/users` | `admin` | Provision new user account | Replaces public signup. Non-admins receive 403. Emits audit log entry. |
 | `PATCH`| `/api/users/:id/revoke` | `admin` | Instant killswitch on user | Increments target user `tokenVersion`, instantly terminating their access. |
 | `DELETE`| `/api/users/:id` | `admin` | Delete user account | Cannot delete another admin or self. Cascades soft-delete on owned docs & cleans shares. |
 | `GET` | `/api/audit` | `admin` | Query SOC audit ledger | Paginated, filterable by user, action, and date. Audit records are strictly read-only. |
@@ -290,7 +294,27 @@ All authenticated endpoints require an `Authorization: Bearer <JWT>` header.
 
 ---
 
-## 7. Companion Documentation
+## 7. Video Demonstration & Walkthrough
+
+- **Demo Video URL:** [https://drive.google.com/file/d/1t454xyEQEIrthwDnf0mwtfwAEk5F09Bf/view?usp=sharing](https://drive.google.com/file/d/1t454xyEQEIrthwDnf0mwtfwAEk5F09Bf/view?usp=sharing)
+- **Total Runtime:** 01:45 (1 minute 45 seconds)
+- **File Asset:** `vaultron.mp4`
+- **Core Workflows Shown:** Zero-Trust Login, Admin User Provisioning, Immutable SOC Audit Telemetry, Cryptographic File Hash Oversight, Owner Upload & Permission Delegation.
+
+### Walkthrough Timeline & Feature Breakdown
+
+| Timestamp Range | Portal / Role | Feature / Workflow Demonstrated | Security & Architecture Validation |
+| :---: | :--- | :--- | :--- |
+| **0:00 – 0:15** | **Login & Authentication** (`admin@trustvault.io`) | **Enterprise Zero-Trust Login & 1-Click Role Presets** <br> Navigating to Vaultoran Security Portal; 1-click preset login for Administrator; Zero-Trust policy enforcement notice. | Eliminates open self-registration; validates credential-based session issuance and rate-limiting. |
+| **0:15 – 0:28** | **Admin SOC Console** (Administrator) | **Identity Governance & User Account Provisioning** <br> Admin triggers `+ Create Account` modal to provision a new user (`nova`), selects corporate role clearance (`viewer`), and validates password security policy. | Demonstrates closed user lifecycle management: only authorized administrators can provision accounts (`POST /api/users`). |
+| **0:28 – 0:38** | **Admin SOC Console** (Administrator) | **Immutable Real-Time Audit Ledger & SOC Telemetry** <br> Reviewing system-wide audit trail with filter tabs (`ALL`, `LOGIN`, `UPLOAD`, `DOWNLOAD`, `PERMISSION_CHANGE`); checking append-only immutability status ("Enforced"). | Proves Mongoose query-level pre-hook protection blocking log tampering/purging; verifies transparent client IP & timestamp logging. |
+| **0:38 – 0:48** | **Admin SOC Console** (Administrator) | **System Documents & Global Integrity Ledger** <br> Inspecting all repository documents, reviewing cryptographic SHA-256 integrity digests, file sizes, and owner attribution. | Proves multi-tenant document tracking and SHA-256 checksum persistence across storage envelopes. |
+| **0:48 – 1:15** | **Owner Portal** (Document Owner) | **Confidential Document Upload & Compartment Delegation** <br> Uploading sensitive files into isolated compartments; delegating clearance (`read` vs `edit`) to specific viewers; toggling access rights. | Enforces least-privilege compartmentalization; triggers atomic `PERMISSION_CHANGE` and `UPLOAD` audit events. |
+| **1:15 – 1:45** | **Platform Security Overview** | **Zero-Trust Role Switching & Multi-Tenant Isolation** <br> Testing role transitions (Admin, Owner, Viewer), instant session revocation killswitch, and verifying complete end-to-end access boundaries. | Confirms cross-tenant isolation (unauthorized requests return 403 Forbidden with automated denial logging). |
+
+---
+
+## 8. Companion Documentation
 - **[Threat Model & STRIDE Analysis (THREATS.md)](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/THREATS.md)**
 - **[Prompt Log, AI Failures & Reflections (PROMPTS.md)](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/PROMPTS.md)**
 - **[Backend Architecture & Technical Reference (backend/README.md)](file:///c:/Users/novar/OneDrive/Desktop/Pictures/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/vaultron/backend/README.md)**

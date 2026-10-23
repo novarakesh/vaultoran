@@ -104,7 +104,7 @@ This document catalogs:
 
 ## 3. Where the AI Was Wrong: Security Bugs & Human Fixes
 
-The following five case studies detail critical security oversights and operational bugs introduced by the AI, followed by the human engineering analysis and code fixes.
+The following six case studies detail critical security oversights and operational bugs introduced by the AI, followed by the human engineering analysis and code fixes.
 
 ---
 
@@ -333,6 +333,19 @@ exports.deleteUser = async (req, res) => {
   res.json({ message: 'User and associated shares deleted successfully.' });
 };
 ```
+
+---
+
+### Case 6: Public User Signup on Login Page (Open Self-Registration Flaw)
+
+#### The AI's Mistake
+The AI originally generated a public user signup tab and registration form directly on the login screen, allowing arbitrary external visitors to self-register accounts on the platform.
+
+#### Why It Was Wrong
+In a Zero-Trust confidential document exchange, unvetted public account creation is an architectural violation. Allowing open self-registration invites malicious actors to create unapproved accounts, probe the document namespace, and bypass corporate credential vetting.
+
+#### The Human Fix
+I removed the public user signup page from the login interface entirely, making the login screen a pure corporate authentication gateway. I replaced open registration with a closed identity governance model where **only authenticated administrators can create and provision new user accounts** via `POST /api/users` in the Admin Governance Console, requiring explicit role assignment (`admin`, `owner`, `viewer`) and enforcing password complexity policies and append-only audit trail logging.
 
 ---
 
